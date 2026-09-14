@@ -11,7 +11,8 @@ import time
 
 import numpy as np
 
-from endoexo.align import FEATURE_COLUMNS, PanelIndex, features_for_pair
+from endoexo.align import (FEATURE_COLUMNS, MATE_FEATURES, PanelIndex,
+                           features_for_pair)
 from endoexo.evaluate import (confusion_rates, cv_scores, evaluate_oof,
                               rule_baselines)
 from endoexo.simulate import simulate_reads, simulate_world
@@ -59,16 +60,23 @@ def run_point(divergence: float, *, panel_mode: str = "full", seed: int = 42,
               f"strain_div={meta['realized_strain_divergence']:.3f} "
               f"({time.time()-t0:.1f}s)")
 
-    rows, truth_src, groups, local_div = [], [], [], []
+    rows, truth_src, groups, local_div, ambiguous = [], [], [], [], []
+    n_exo_reads = sum(1 for t in reads if t.source == "EXO")
+    n_exo_lost_to_host = 0
     for t in reads:
         f = features_for_pair(t.read, t.mate, index, read_len)
         if f is None:
             continue
         if f.best_cat != "EXO":
-            continue                      # not a call: the pipeline never counts it
+            # not a call: the pipeline never counts it. For a genuine exogenous
+            # read that is a sensitivity loss nobody sees, so it is counted.
+            if t.source == "EXO":
+                n_exo_lost_to_host += 1
+            continue
         rows.append([getattr(f, c) for c in FEATURE_COLUMNS])
         truth_src.append(t.source)
         local_div.append(t.local_div)
+        ambiguous.append(f.n_tied_top_categories > 1)
         # grouping unit: HERV/HOST locus, or a positional bin along the provirus
         groups.append(t.locus if t.source != "EXO"
                       else f"EXO_BIN{t.frag_start // 1000}")
@@ -106,6 +114,34 @@ def run_point(divergence: float, *, panel_mode: str = "full", seed: int = 42,
         "rules": {}, "model": {},
     }
 
+    # THE TWO FAILURE MECHANISMS, separated. A tie means the panel holds an equally
+    # good explanation, which is free to detect; an unopposed win means the read
+    # beat everything present and no competition-based rule can touch it.
+    amb = np.array(ambiguous, dtype=bool)
+    out["n_exo_reads_simulated"] = int(n_exo_reads)
+    out["n_exo_lost_to_host_assignment"] = int(n_exo_lost_to_host)
+    out["tie_typology"] = {
+        "false_tied_frac": round(float(amb[y == 0].mean()), 4) if (y == 0).any() else None,
+        "true_tied_frac": round(float(amb[y == 1].mean()), 4) if (y == 1).any() else None,
+        "n_false_unopposed": int((~amb & (y == 0)).sum()),
+        "n_true_unopposed": int((~amb & (y == 1)).sum()),
+    }
+    # What does the three-bin rule buy? Policy A awards a tie to the virus; policy
+    # B routes it to an ambiguous bin and counts only unopposed wins. Sensitivity
+    # is against ALL simulated exogenous reads, which is the denominator an assay
+    # actually has.
+    out["policies"] = {}
+    for name, keep in (("award_ties_to_exo", np.ones(len(y), dtype=bool)),
+                       ("three_bin_ambiguous", ~amb)):
+        tp = int(((y == 1) & keep).sum())
+        fp = int(((y == 0) & keep).sum())
+        out["policies"][name] = {
+            "calls": tp + fp,
+            "false_calls": fp,
+            "false_call_frac": round(fp / (tp + fp), 4) if (tp + fp) else None,
+            "sensitivity_vs_all_exo_reads": round(tp / n_exo_reads, 4) if n_exo_reads else None,
+        }
+
     # How hard were the reads that got through? local_div is unobservable at
     # inference time and is reported as a diagnostic only.
     fp_div = local_div[(y == 0) & ~np.isnan(local_div)]
@@ -122,17 +158,32 @@ def run_point(divergence: float, *, panel_mode: str = "full", seed: int = 42,
         sens, fpr = confusion_rates(y, pred)
         out["rules"][name] = {"sensitivity": round(sens, 4), "fpr": round(fpr, 4)}
 
+    # Feature sets. `no_mate` ablates everything the MATE contributes, which is the
+    # only read-pair-level route past the conserved-window ceiling of F016. If the
+    # mate is doing the work, dropping it should hurt most in the hardest cells.
+    col_index = {c: i for i, c in enumerate(FEATURE_COLUMNS)}
+    featsets = {
+        "all": list(range(len(FEATURE_COLUMNS))),
+        "no_mate": [col_index[c] for c in FEATURE_COLUMNS if c not in MATE_FEATURES],
+    }
+
     if out["n_false_exo"] > 0 and out["n_true_exo"] > 0:
-        for model in ("logreg", "gbm"):
-            for scheme in ("grouped", "read_level"):
-                n_groups = len(np.unique(groups))
-                if scheme == "grouped" and n_groups < 5:
-                    out["model"][f"{model}/{scheme}"] = {"note": f"only {n_groups} groups"}
-                    continue
-                oof = cv_scores(X, y, groups, scheme=scheme, model=model)
-                out["model"][f"{model}/{scheme}"] = {
-                    k: (round(v, 4) if isinstance(v, float) else v)
-                    for k, v in evaluate_oof(y, oof).items()}
+        n_groups = len(np.unique(groups))
+        for featset, cols in featsets.items():
+            for model in ("logreg", "gbm"):
+                # read-level CV is run only on the full feature set; the leakage
+                # contrast is established and repeating it per ablation is waste
+                schemes = ("grouped", "read_level") if featset == "all" else ("grouped",)
+                for scheme in schemes:
+                    key = f"{model}/{scheme}/{featset}"
+                    if scheme == "grouped" and n_groups < 5:
+                        out["model"][key] = {"note": f"only {n_groups} groups"}
+                        continue
+                    oof = cv_scores(X[:, cols], y, groups, scheme=scheme, model=model)
+                    out["model"][key] = {
+                        k: (round(v, 4) if isinstance(v, float) else v)
+                        for k, v in evaluate_oof(y, oof).items()}
+                    out["model"][key]["prevalence"] = round(float(y.mean()), 4)
     out["n_groups"] = int(len(np.unique(groups)))
     out["seconds"] = round(time.time() - t0, 1)
     return out

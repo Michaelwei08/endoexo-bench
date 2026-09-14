@@ -58,6 +58,18 @@
 - D007 ACTIVE 2026-09-14 [CODE]: Report the realized per-read local divergence as a
   DIAGNOSTIC and never as a feature. It is the ground-truth difficulty of a read and
   nothing observable at inference time reveals it; using it would be a label leak.
+- D008 ACTIVE 2026-09-14 [CODE]: The aligner keeps the OPTIMISTIC tie-break -- a tie
+  resolves to whichever reference was added first, in practice the exogenous one --
+  and exposes the tie instead of hiding it, so the POLICY is the caller's decision
+  and its cost is measurable. Every run reports both policies: award_ties_to_exo and
+  three_bin_ambiguous. This is how a silently inflated exogenous call count gets
+  caught, and it is what made F019 to F022 visible at all. A real aligner breaks the
+  tie arbitrarily and reports mapping quality 0, so neither policy is "the" truth;
+  reporting one without the other is the mistake.
+- D009 ACTIVE 2026-09-14 [CODE]: Never quote a pre-filter false-call fraction on its
+  own. It is policy-dependent, by up to the entire effect: the reference-insertion
+  case reads 62.8 percent false under one tie policy and 0.0 percent under the
+  other. Quote the tie typology or a post-policy number.
 
 ## Findings from the first slice (2026-09-14)
 
@@ -154,7 +166,10 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
 
 ### F009 re-run under the distributional divergence model (5 panels x 4 divergences x 3 seeds)
 
-- F013 2026-09-14 [TOOL]: F009 CORRECTED. What holds, strengthened:
+- F013 2026-09-14 [TOOL]: ONE CLAUSE SUPERSEDED by F020 the same day -- the
+  "no panel composition eliminates it" sentence counted exact ties as exogenous
+  calls and does not survive. The conditional and the redundancy result stand.
+  Kept unedited for the audit trail. F009 CORRECTED. What holds, strengthened:
     When the endogenous locus is ABSENT from the assembly, adding the entire host
     genome to the panel is worth about 0.1 percentage points. False call fraction
     82.6 / 81.6 / 80.0 / 76.2 percent against a viral-only panel's 82.7 / 81.8 /
@@ -212,6 +227,95 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   ranges from 0.173 to 0.689 because panel composition changes how many reads are
   called at all, and the PR AUC floor IS the prevalence. Always quote lift over
   prevalence alongside it, or quote FPR at fixed sensitivity instead.
+
+### Tie typology (2026-09-14, seed 42; the sweep confirmation is in results_typology.json)
+
+- F019 2026-09-14 [TOOL]: There are TWO failure mechanisms, not one, and they need
+  opposite remedies. Measured fraction of false exogenous calls that are EXACT ties
+  (AS == XS) at divergence 0.02 / 0.20:
+    viral_only          0.0 / 0.0 percent
+    host lacks loci     0.0 / 0.0 percent
+    host contains loci  100.0 / 100.0 percent
+    host lacks + decoy  85.8 / 59.9 percent
+  A TIE means the panel holds an equally good explanation. It costs nothing to
+  detect, and the unique-best rule removes every one of them -- which is the whole
+  reason F015 measured FPR 0.000 there.
+  An UNOPPOSED WIN means the read beat everything in the panel with a positive
+  margin. No competition-based test can touch it, which is the real reason
+  unique-best measures FPR 1.000 on a viral-only panel. F002 called that rule
+  vacuous for lack of a competitor; the deeper statement is that its errors there
+  are all unopposed wins.
+- F020 2026-09-14 [TOOL]: F013 CORRECTED, the second correction of this result
+  today. Its claim that no panel composition eliminates cross-mapping rested on
+  awarding every tie to the virus. Since 100 percent of the false calls in the
+  reference-insertion case are ties, that case IS fully removable: 0 false calls,
+  already visible as FPR 0.000 in F015. The honest statement is that cross-mapping
+  is eliminable exactly when the panel contains the read's true source, and the
+  price is sensitivity rather than specificity.
+  The claim does survive for the polymorphic case, where 14.2 percent of false
+  calls at divergence 0.02 and 40.1 percent at 0.20 are unopposed wins.
+- F021 2026-09-14 [TOOL]: The sensitivity ceiling is a quantity, not a worry. The
+  tie fraction among TRUE exogenous reads is a hard upper bound on any
+  tie-rejecting rule: 55.5 percent of genuine viral reads are ties at divergence
+  0.02 with the host in the panel, so no such rule can exceed 44.5 percent
+  sensitivity. At divergence 0.20 the bound is 80.8 percent. The ceiling is set by
+  how much of the provirus is conserved relative to the host endogenous copy, and
+  it is measurable in advance from the references alone -- no cohort needed.
+- F022 2026-09-14 [TOOL]: A CONSENSUS decoy degrades as the locus drifts from the
+  consensus, which is a practical design point. It converts unopposed wins into
+  ties well at divergence 0.02 (85.8 percent tied) and poorly at 0.20 (59.9
+  percent), because a family consensus is a bad proxy for one specific old locus.
+  The implication is that the right decoy for polymorphic insertions is a
+  LOCUS-RESOLVED reference, not a family consensus.
+
+### Sweep confirmation, 5 panels x 4 divergences x 3 seeds (results_typology.json)
+
+- F023 2026-09-14 [TOOL]: F019 to F022 confirmed. Tie fraction among FALSE calls is
+  0.0 +- 0.0 percent on every viral-only and polymorphic-no-decoy cell and 99.8 to
+  100.0 percent on every reference-insertion cell, at all four divergences. The
+  mechanism split is not a seed accident.
+- F024 2026-09-14 [TOOL]: THE SHARPEST RESULT OF THE SESSION. The three-bin rule --
+  route a tie to an ambiguous bin -- is a COMPLETE NO-OP when the endogenous locus
+  is absent from the panel. False call fraction 82.7 percent before and 82.7 percent
+  after, sensitivity 1.000 before and 1.000 after, identical at every divergence,
+  because there are no ties to bin. The rule that the field treats as the answer to
+  exogenous/endogenous ambiguity does nothing at all in the insertionally
+  polymorphic case.
+  Where the locus IS in the panel it is near-perfect on specificity and expensive:
+  false calls 62.8 to 0.0 percent at divergence 0.02, but sensitivity 0.989 to
+  0.343. At divergence 0.20, 31.1 to 0.0 percent for sensitivity 0.999 to 0.780.
+  With a consensus decoy it is partial: 69.3 to 38.5 percent at divergence 0.02,
+  sensitivity 1.000 to 0.617.
+  This is the direct measurement of the three-bin decision rule that the motivating
+  prior-art audit could only label a project-specific design choice.
+- F025 2026-09-14 [TOOL]: The mate is the remedy for the tie mechanism, and ONLY for
+  it. Ablating all seven mate and pair features from the grouped GBM:
+    where a competitor is present, FPR at 95 percent sensitivity degrades from
+    0.702 to 0.967 at divergence 0.02 and from 0.189 to 0.887 at 0.20
+    (reference insertion), and 0.891 to 0.980 / 0.297 to 0.772 with a consensus
+    decoy. PR AUC gain from the mate peaks at +0.174.
+    where NO competitor is present, the mate buys +0.005 to +0.007 PR AUC at
+    divergence 0.02 and FPR is unchanged within noise (0.944 versus 0.958).
+  The mechanism is now explicit: the mate helps because it lands a fragment away
+  from the read, possibly outside the conserved window, where the COMPETITION is
+  decidable. With nothing to compete against, the mate has no more information than
+  the read. The +0.121 gain in viral_only at divergence 0.20 comes through a
+  different channel -- the mate's absolute score, not its margin.
+- F026 2026-09-14 [TOOL]: THE OPEN PROBLEM, stated as a negative result. An
+  unopposed win against a young endogenous element is not solvable by anything at
+  the read-pair level. Grouped GBM with the full feature set reaches PR AUC 0.138
+  +- 0.010 against a 0.173 prevalence floor (lift 0.80x) on viral_only at divergence
+  0.02, and 0.134 +- 0.008 against 0.174 (lift 0.77x) on polymorphic-no-decoy --
+  BELOW CHANCE, over three seeds, with FPR at 95 percent sensitivity of 0.944 and
+  0.962. The three-bin rule is a no-op there (F024) and the mate is worthless there
+  (F025). The only routes left are above the read pair: coverage breadth over
+  NON-conserved windows of the reference, and host-virus junction evidence. That is
+  the next build.
+- F027 2026-09-14 [TOOL]: Read-level CV understates FPR at 95 percent sensitivity in
+  all sixteen cells, and worst where the task is hardest: 0.646 against a true 0.944
+  on viral_only at divergence 0.02, 0.055 against 0.189 on reference-insertion at
+  0.20. Quoting a read-level operating point is not a small optimism; it is a
+  different answer.
 
 ## State
 

@@ -135,6 +135,41 @@ class ReadFeatures:
     n_alt_within5: int
     mate_same_ref: int
     mate_AS: int
+    # Tie structure. The two ways a read can be mis-assigned are completely
+    # different problems and these separate them: an EXACT TIE means the panel
+    # contains something that explains the read equally well, which is free to
+    # detect and removable at a cost in sensitivity; an UNOPPOSED WIN means the
+    # read beat everything in the panel and is indistinguishable from a true
+    # positive by any competition-based test.
+    n_tied_top: int = 1
+    n_tied_top_categories: int = 1
+    # Pair-level discrimination. A read inside a conserved window carries no
+    # information, but its mate sits a fragment away and may land outside that
+    # window, where the competition is decidable.
+    mate_best_cat_is_exo: int = 0
+    mate_as_minus_xs: int = 0
+    mate_n_tied_top_categories: int = 1
+    pair_max_gap: int = 0
+    pair_min_gap: int = 0
+
+
+def _tie_structure(hits: list[Hit]) -> tuple[int, int]:
+    """(number of references tied at the top score, number of distinct categories
+    among them). A read whose top score is held by more than one CATEGORY cannot
+    be assigned by competition at all.
+
+    NOTE ON TIE-BREAKING. `align_read` sorts by score only, so a tie resolves to
+    whichever reference was added to the panel first -- in practice the exogenous
+    one. That is the OPTIMISTIC policy and it is kept as the raw behaviour on
+    purpose, with the tie exposed here so the caller decides. A real aligner
+    breaks the tie arbitrarily and reports mapping quality 0; treating the tie as
+    an assignment is what silently inflates an exogenous call count.
+    """
+    if not hits:
+        return 0, 0
+    top = hits[0].score
+    tied = [h for h in hits if h.score == top]
+    return len(tied), len({h.category for h in tied})
 
 
 def features_for_pair(read: np.ndarray, mate: np.ndarray, index: PanelIndex,
@@ -147,14 +182,27 @@ def features_for_pair(read: np.ndarray, mate: np.ndarray, index: PanelIndex,
     xs_any = others[0].score if others else 0
     diff_cat = [h.score for h in others if h.category != best.category]
     xs_other = max(diff_cat) if diff_cat else 0
+    n_tied, n_tied_cats = _tie_structure(hits)
 
     mate_hits = align_read(mate, index)
     mate_best = mate_hits[0] if mate_hits else None
+    mate_others = [h for h in mate_hits[1:] if h.score > 0] if mate_hits else []
+    mate_gap = (mate_best.score - (mate_others[0].score if mate_others else 0)) \
+        if mate_best else 0
+    _, mate_tied_cats = _tie_structure(mate_hits)
+    read_gap = best.score - xs_any
 
     ref_len = len(index.panel.refs[best.ref_id])
     dist_term = min(best.ref_start, ref_len - (best.ref_start + best.aligned_len))
 
     return ReadFeatures(
+        n_tied_top=n_tied,
+        n_tied_top_categories=n_tied_cats,
+        mate_best_cat_is_exo=int(mate_best is not None and mate_best.category == "EXO"),
+        mate_as_minus_xs=mate_gap,
+        mate_n_tied_top_categories=mate_tied_cats,
+        pair_max_gap=max(read_gap, mate_gap),
+        pair_min_gap=min(read_gap, mate_gap),
         best_ref=best.ref_id,
         best_cat=best.category,
         AS=best.score,
@@ -176,4 +224,14 @@ FEATURE_COLUMNS = [
     "AS", "XS_any", "XS_other_cat", "as_minus_xs", "as_minus_xs_other_cat",
     "aligned_len", "softclip_len", "dist_to_terminus", "in_ltr",
     "n_alt_within5", "mate_same_ref", "mate_AS",
+    "n_tied_top", "n_tied_top_categories",
+    "mate_best_cat_is_exo", "mate_as_minus_xs", "mate_n_tied_top_categories",
+    "pair_max_gap", "pair_min_gap",
 ]
+
+# Features whose value comes from the MATE rather than the read itself. F016
+# showed that a read inside a conserved window is information-free, so these are
+# the only read-pair-level route past that ceiling and are ablated separately.
+MATE_FEATURES = ("mate_same_ref", "mate_AS", "mate_best_cat_is_exo",
+                 "mate_as_minus_xs", "mate_n_tied_top_categories",
+                 "pair_max_gap", "pair_min_gap")

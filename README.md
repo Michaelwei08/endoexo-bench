@@ -64,6 +64,40 @@ from endogenous cross-mappings.
   memorise where a given endogenous locus lands on the viral reference; the
   read-level number is reported only as the leakage contrast.
 
+### Two failure mechanisms, which need opposite remedies
+
+Mis-assignment does not come in one flavour, and separating the two is most of
+what this benchmark measures.
+
+| | **Exact tie** (`AS == XS`) | **Unopposed win** (`AS > XS`, wrongly) |
+|---|---|---|
+| Cause | the panel holds an equally good explanation | the read's true source is absent from the panel |
+| When | the endogenous locus is in the assembly | the locus is insertionally polymorphic |
+| Detectable? | free -- it is an equality test | no competition-based test can see it |
+| Remedy | route to an ambiguous bin | breadth, mate, junction evidence |
+| Cost | sensitivity, bounded by the tie fraction among *true* reads | -- |
+
+A read inside a window where the endogenous copy and the exogenous reference
+are the *same sequence* is information-free on its own, so the tie is not a
+defect of the rule -- it is the correct report. What it costs is quantifiable in
+advance from the references alone: the fraction of true exogenous reads that are
+also ties is a hard ceiling on any tie-rejecting rule.
+
+### Tie policy is an axis, not a setting
+
+Every run reports both, because the difference is large enough to reverse a
+conclusion:
+
+- `award_ties_to_exo` -- the optimistic policy, and the one an inflated call
+  count comes from.
+- `three_bin_ambiguous` -- ties go to an ambiguous bin, which is the three-bin
+  rule that the motivating prior-art audit could only label a project-specific
+  design choice. The benchmark measures what it buys and what it costs.
+
+Sensitivity is reported against **all simulated exogenous reads**, not against
+the ones that happened to be called, because a true read lost to host assignment
+is a loss the pipeline never sees.
+
 ## Experimental axes
 
 | Axis | Values |
@@ -99,6 +133,58 @@ python run_slice.py --divergence 0.02 0.05 0.10 0.20 \
                     --panel-mode viral_only no_decoy full --out results.json
 python run_leakage_probe.py --seeds 42 142 242
 ```
+
+## What it has found so far
+
+Simulation only, with the pure-Python ungapped aligner, over 5 panel compositions
+x 4 median divergences x 3 seeds. Directional, not publishable -- see the limits
+below.
+
+**1. The three-bin rule is a no-op exactly where the field needs it.** Routing a
+tie to an ambiguous bin is the standard answer to exogenous/endogenous
+ambiguity. When the endogenous locus sits in the reference assembly it works
+almost perfectly on specificity and is expensive:
+
+| endogenous locus | false calls before -> after | sensitivity before -> after |
+|---|---|---|
+| in the assembly, divergence 0.02 | 62.8% -> **0.0%** | 0.989 -> **0.343** |
+| in the assembly, divergence 0.20 | 31.1% -> **0.0%** | 0.999 -> 0.780 |
+| absent, consensus decoy, div 0.02 | 69.3% -> 38.5% | 1.000 -> 0.617 |
+| **absent, no decoy** | **82.7% -> 82.7%** | **1.000 -> 1.000** |
+
+The last row is the finding. There are no ties to bin, so the rule changes
+nothing at any divergence.
+
+**2. The sensitivity ceiling is computable in advance, from references alone.**
+The fraction of *true* exogenous reads that are themselves ties is a hard bound
+on any tie-rejecting rule: 65.3% of genuine viral reads are ties at divergence
+0.02 with the host in the panel, so no such rule can exceed **34.7%**
+sensitivity. No cohort is needed to know this before running an assay.
+
+**3. The mate rescues the tie mechanism, and only that one.** Ablating all seven
+mate and pair features from the grouped model degrades FPR at 95% sensitivity
+from 0.702 to 0.967 (divergence 0.02) and 0.189 to 0.887 (0.20) where a
+competitor is present -- and changes nothing (0.944 vs 0.958) where none is. The
+mate helps because it lands a fragment away, possibly outside the conserved
+window, where the competition is decidable; with nothing to compete against it
+carries no more information than the read.
+
+**4. A consensus decoy degrades as the locus ages.** It converts unopposed wins
+into detectable ties for 82.1% of false calls at divergence 0.02 but only 59.0%
+at 0.20. The right decoy for polymorphic insertions is locus-resolved, not a
+family consensus.
+
+**5. The open problem, as a negative result.** An unopposed win against a young
+endogenous element is not solvable at the read-pair level. The grouped model
+reaches PR AUC 0.138 against a 0.173 prevalence floor -- **below chance**, over
+three seeds. The three-bin rule is a no-op there and the mate is worthless
+there. The remaining routes are above the read pair: coverage breadth over
+non-conserved windows, and host-virus junction evidence.
+
+**6. Read-level CV gives a different answer, not an optimistic one.** It
+understates FPR at 95% sensitivity in all sixteen cells and by the most where
+the task is hardest (0.646 against a true 0.944), and in the hardest cell it
+reports 2.4x chance where the honest grouped answer is below chance.
 
 ## Status and honest limits
 
