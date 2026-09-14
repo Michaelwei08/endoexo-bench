@@ -70,6 +70,21 @@
   own. It is policy-dependent, by up to the entire effect: the reference-insertion
   case reads 62.8 percent false under one tie policy and 0.0 percent under the
   other. Quote the tie typology or a post-policy number.
+- D010 ACTIVE 2026-09-15 [CODE]: Site rates are normalised to mean EXACTLY 1, so the
+  `divergence` argument means what its name says. See F028 for why.
+- D011 ACTIVE 2026-09-15 [CODE]: The repository carries a stdlib unittest suite,
+  `python -m unittest discover -s tests -t .`, and it tests the INVARIANTS the
+  findings rest on rather than surface behaviour: that the aligner's vectorised
+  max-subarray matches a brute-force reference, that the tie structure counts
+  categories and not references, that a locus below the family divergence can exist
+  at all (the F011 defect), that the documented point-model ablation actually
+  flattens the rates (a defect that shipped in the README), and that the cohort seed
+  fixes the virus while the sample seed redraws the host.
+- D012 ACTIVE 2026-09-15 [CODE]: The task is evaluated at TWO granularities. Read
+  level is bounded by the conserved-window ceiling and is where F026's negative
+  result lives. Sample level is what a detection assay actually reports and is the
+  only place an aggregate statistic can break that ceiling. Neither replaces the
+  other; a result at one granularity may not be quoted as a result at the other.
 
 ## Findings from the first slice (2026-09-14)
 
@@ -163,6 +178,24 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   divergence. On a polymorphic-locus panel without a decoy its FPR falls from 0.995
   at divergence 0.02 to 0.112 at 0.20, while unique-best stays vacuous at 1.0
   throughout.
+
+### Test suite, and the defect it found (2026-09-15)
+
+- F028 2026-09-15 [TOOL]: The test suite found a real defect on its first run, and
+  it was in the code rather than the test. Gamma site rates have mean 1 in
+  EXPECTATION, but the sample mean over the blocks does not: at block_len 400 over
+  an 8.5 kb provirus there are only 22 blocks, so the standard error of their mean
+  is about 30 percent. Measured over 200 seeds the realized mean rate had sd 0.298
+  and ranged 0.345 to 1.912 -- meaning a requested divergence of 0.10 was silently
+  delivered as anything from 0.035 to 0.19, by a factor of five, seed to seed.
+  Rates are now normalised to mean exactly 1 (D010).
+  This does not invalidate any finding: every realized divergence is measured and
+  reported (D006), and the findings are comparisons within a run. It does mean the
+  realized divergences in results_sweep1 / results_f009_dist / results_typology
+  carry that drift, and results_sample_level was launched before the fix.
+- F029 2026-09-15 [CODE]: 26 tests, all passing, about 0.12 s. The suite is small on
+  purpose: every test corresponds to an invariant a finding depends on or to a
+  defect that actually happened here.
 
 ### F009 re-run under the distributional divergence model (5 panels x 4 divergences x 3 seeds)
 

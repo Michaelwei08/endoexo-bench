@@ -62,10 +62,16 @@ def gamma_site_rates(length: int, shape: float, rng: np.random.Generator,
     """
     n_blocks = int(np.ceil(length / block_len))
     regional = np.repeat(rng.gamma(shape, 1.0 / shape, size=n_blocks), block_len)[:length]
-    if jitter_shape <= 0:
-        return regional
-    fine = rng.gamma(jitter_shape, 1.0 / jitter_shape, size=length)
-    return regional * fine
+    rates = regional if jitter_shape <= 0 else \
+        regional * rng.gamma(jitter_shape, 1.0 / jitter_shape, size=length)
+    # Normalise to mean EXACTLY 1, so `divergence` means what its name says. The
+    # gamma has mean 1 in expectation, but the SAMPLE mean over a few hundred
+    # blocks does not: at block_len 400 over 8.5 kb there are only about 21
+    # blocks, and the standard error of their mean is sqrt(1/(n_blocks*shape)) --
+    # about 30 percent at shape 0.5. Without this the realized divergence drifts
+    # from the requested one by tens of percent, seed to seed, for no reason.
+    mean = float(rates.mean())
+    return rates / mean if mean > 0 else rates
 
 
 def mutate(seq: np.ndarray, divergence: float, rng: np.random.Generator,
@@ -171,23 +177,31 @@ def simulate_world(
     sigma_locus: float = 0.7,
     sigma_strain: float = 0.4,
     seed: int = 42,
+    sample_seed: int | None = None,
 ):
     """Return (panel, host, herv_locus_spans, exo_strain, meta).
 
     `herv_divergence` is the MEDIAN of the per-locus distribution, not a fixed
     value. `meta` carries realized divergences and the per-locus difference masks
     the read simulator needs in order to report per-read difficulty.
+
+    TWO SEEDS, on purpose. `seed` is COHORT level and fixes the provirus, the site
+    rate profile and the endogenous family consensus -- everything that must be
+    identical across samples, because a cohort shares one viral reference and one
+    endogenous family. `sample_seed` is SAMPLE level and redraws the host loci and
+    the viral strain, because individuals carry different insertions and different
+    strains. It defaults to `seed`, which reproduces the single-sample behaviour.
     """
     rng = np.random.default_rng(seed)
     exo_ref = build_provirus(rng)            # the reference defines the coordinates
     site_rates = gamma_site_rates(len(exo_ref), rate_shape, rng,
                                   block_len=rate_block_len,
                                   jitter_shape=rate_jitter_shape)
+    herv_consensus = mutate(exo_ref, herv_divergence, rng, site_rates)
 
+    rng = np.random.default_rng(seed if sample_seed is None else sample_seed)
     d_strain = float(lognormal_around(exo_strain_divergence, sigma_strain, rng))
     exo_strain = mutate(exo_ref, d_strain, rng, site_rates)
-
-    herv_consensus = mutate(exo_ref, herv_divergence, rng, site_rates)
 
     pieces: list[np.ndarray] = []
     herv_spans: dict[str, tuple[int, int]] = {}

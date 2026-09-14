@@ -151,6 +151,10 @@ class ReadFeatures:
     mate_n_tied_top_categories: int = 1
     pair_max_gap: int = 0
     pair_min_gap: int = 0
+    # Position on the best reference. NOT a model feature -- it was the leakage
+    # source in F004 -- but it is what a SAMPLE-level coverage profile is built
+    # from, which is the one route past the read-pair ceiling of F026.
+    best_ref_start: int = 0
 
 
 def _tie_structure(hits: list[Hit]) -> tuple[int, int]:
@@ -196,6 +200,7 @@ def features_for_pair(read: np.ndarray, mate: np.ndarray, index: PanelIndex,
     dist_term = min(best.ref_start, ref_len - (best.ref_start + best.aligned_len))
 
     return ReadFeatures(
+        best_ref_start=best.ref_start,
         n_tied_top=n_tied,
         n_tied_top_categories=n_tied_cats,
         mate_best_cat_is_exo=int(mate_best is not None and mate_best.category == "EXO"),
