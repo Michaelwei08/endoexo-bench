@@ -21,11 +21,11 @@ POSITION_FEATURES = ("dist_to_terminus", "in_ltr")
 
 
 def build_matrix(divergence, n_herv_loci, host_filler_bp, exo_depth, host_depth, seed, read_len=150):
-    panel, host, herv_spans, exo_strain = simulate_world(
+    panel, host, herv_spans, exo_strain, meta = simulate_world(
         divergence, n_herv_loci=n_herv_loci, host_filler_bp=host_filler_bp, seed=seed)
-    for ref_id in ("HOST", "HERV_CONSENSUS"):          # viral_only panel
+    for ref_id in ("HOST", "HOST_NOLOCI", "HERV_CONSENSUS"):   # viral_only panel
         del panel.refs[ref_id]; del panel.categories[ref_id]; panel.ltr_spans.pop(ref_id, None)
-    reads = simulate_reads(exo_strain, host, herv_spans, exo_depth=exo_depth,
+    reads = simulate_reads(exo_strain, host, herv_spans, meta, exo_depth=exo_depth,
                            host_depth=host_depth, read_len=read_len, seed=seed + 1)
     index = PanelIndex(panel, k=19)
     rows, y, groups = [], [], []

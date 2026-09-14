@@ -47,6 +47,17 @@
 - D005 ACTIVE 2026-09-14 [CODE]: Panel composition is an experimental axis, not a
   setting: viral_only / no_decoy / full. The first slice reproduced the known effect
   that adding host and decoy references drives cross-mapping to zero.
+- D006 ACTIVE 2026-09-14 [USER]: Divergence is a DISTRIBUTION, in three respects:
+  across loci (lognormal, drawn directly, with reversion of family substitutions
+  for loci younger than the family), within the strain (lognormal), and across
+  sites with AUTOCORRELATION (gamma at block resolution, shared between lineages
+  because constraint is a property of the site and not of the lineage). The
+  point-divergence model stays reachable via --rate-shape 1e6 --sigma-locus 0
+  --sigma-strain 0, so the effect of the distributional model can be measured
+  rather than asserted.
+- D007 ACTIVE 2026-09-14 [CODE]: Report the realized per-read local divergence as a
+  DIAGNOSTIC and never as a feature. It is the ground-truth difficulty of a read and
+  nothing observable at inference time reveals it; using it would be a label leak.
 
 ## Findings from the first slice (2026-09-14)
 
@@ -84,11 +95,31 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   honest headline. At divergence 0.02 on a viral-only panel the production rules
   cannot fire at all, and the best grouped model reaches 0.344 PR AUC against a
   0.077 prevalence floor -- about four times chance.
-- F007 2026-09-14 [CODE]: DESIGN DEFECT found by the trial. Divergence is a
-  two-point model (all loci at d, the strain at 0.02), so at d >= 0.10 alignment
-  score alone separates the classes and every model reports PR AUC 1.0 / FPR 0.0.
-  That is a simulation artefact, not a result. Divergence must become a
-  distribution across loci and within the strain.
+- F007 2026-09-14 [CODE]: DESIGN DEFECT found by the trial, now FIXED (see D006).
+  Divergence was a two-point model (all loci at d, the strain at 0.02), so at
+  d >= 0.10 alignment score alone separated the classes and every model reported
+  PR AUC 1.0 / FPR 0.0. That was a simulation artefact, not a result.
+- F011 2026-09-14 [TOOL]: The first attempted fix -- iid gamma site rates plus a
+  lognormal per-locus top-up -- did NOT fix it, and measuring instead of assuming
+  is what caught that. Endogenous read windows falling inside the exogenous range
+  were 37.7 percent at median divergence 0.05 but only 0.8 percent at 0.10 and
+  0.1 percent at 0.20. Two reasons, both structural:
+    Averaging. The mean of 150 iid rates concentrates on 1 with a coefficient of
+    variation of 1/sqrt(150*shape), about 0.115 at shape 0.5, so every 150 bp
+    window carried nearly the family average no matter how heterogeneous the
+    sites were.
+    A hard floor. Each locus was built by adding a top-up to the family
+    consensus, so no locus could be younger than the family and the across-loci
+    spread came entirely from the top-up term.
+- F012 2026-09-14 [TOOL]: Both fixed -- rates drawn at block resolution
+  (autocorrelated, 400 bp default) and per-locus divergence drawn directly with
+  reversion of family substitutions below the family value. Realized per-locus
+  divergence at median 0.10 now spans 0.024 to 0.154, a six-fold range, and the
+  5th percentile of endogenous read-window divergence is 0.000 at EVERY median
+  divergence tested up to 0.30. A read off a 27 percent diverged locus can be
+  identical to the exogenous reference over its whole length, which is the real
+  phenomenon the first model could not produce. Class overlap is now 75.8 / 57.8
+  / 44.2 / 34.5 percent at median divergence 0.05 / 0.10 / 0.20 / 0.30.
 - F008 2026-09-14 [CODE]: DESIGN GAP found by the trial. no_decoy and full scored
   identically at every divergence, which is correct rather than a bug: the
   endogenous elements sit inside the host reference and the host copy is closer to
@@ -97,7 +128,11 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   is an insertionally polymorphic, non-reference locus -- carried by the sample,
   absent from the assembly. Added panel modes poly_no_decoy and poly_full.
 
-- F009 2026-09-14 [TOOL]: FIRST CONCLUSIVE RESULT, and it is a conditional. The
+- F009 2026-09-14 [TOOL]: PARTLY SUPERSEDED by F013 the same day -- every zero in
+  this entry was an artefact of the point-divergence model (F007). The conditional
+  itself survived and was strengthened; the claim that any panel drives
+  cross-mapping to ZERO did not. Kept unedited below for the audit trail.
+  FIRST CONCLUSIVE RESULT, and it is a conditional. The
   value of an explicit endogenous decoy depends entirely on whether the endogenous
   locus is present in the reference assembly.
     Reference insertion (host assembly contains it): the host reference alone takes
@@ -116,6 +151,67 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   divergence. On a polymorphic-locus panel without a decoy its FPR falls from 0.995
   at divergence 0.02 to 0.112 at 0.20, while unique-best stays vacuous at 1.0
   throughout.
+
+### F009 re-run under the distributional divergence model (5 panels x 4 divergences x 3 seeds)
+
+- F013 2026-09-14 [TOOL]: F009 CORRECTED. What holds, strengthened:
+    When the endogenous locus is ABSENT from the assembly, adding the entire host
+    genome to the panel is worth about 0.1 percentage points. False call fraction
+    82.6 / 81.6 / 80.0 / 76.2 percent against a viral-only panel's 82.7 / 81.8 /
+    80.1 / 76.3 at divergence 0.02 / 0.05 / 0.10 / 0.20. Confirmed across three
+    seeds under the harder model.
+    The explicit decoy is exactly redundant when the loci ARE in the assembly:
+    no_decoy and full agree to three digits in every one of the twelve cells.
+    The decoy does help in the polymorphic case: 82.6 to 69.3 percent at
+    divergence 0.02, 76.2 to 50.9 percent at 0.20.
+  What is WITHDRAWN as a point-model artefact: the claim that any panel drives
+  cross-mapping to zero. Under distributional divergence NO panel composition
+  eliminates it at any divergence tested. The best cell is a host-containing panel
+  at divergence 0.20, and 31.1 percent of pre-filter calls are still false there.
+  The point model also made high divergence look uniformly easy: it put viral_only
+  at 39.9 percent false at divergence 0.20 where the distributional model puts it
+  at 76.3.
+- F014 2026-09-14 [TOOL]: F007 is resolved. No cell reports PR AUC 1.0 or FPR 0.0
+  any more, and grouped performance now rises smoothly with divergence rather than
+  saturating (viral_only grouped PR AUC 0.138 / 0.215 / 0.345 / 0.704).
+- F015 2026-09-14 [TOOL]: The production rules fail on SENSITIVITY, not specificity,
+  and that is the opposite of what was assumed. With the host in the panel,
+  unique-best reaches FPR 0.000 -- but keeps only 34.7 percent of true exogenous
+  reads at divergence 0.02 and 78.1 percent at 0.20, and gap-plus-length keeps only
+  16.6 percent. An assay on those rules loses most of its genuine signal on a
+  divergent strain.
+- F016 2026-09-14 [TOOL]: MECHANISM, measured rather than argued. In the
+  reference-insertion case the false positives that survive are ENTIRELY
+  conserved-window reads: median realized window divergence 0.0000, max 0.0067,
+  100 percent below 0.05, at both divergence extremes. In a conserved window the
+  exogenous reference and the endogenous copy are the SAME SEQUENCE, so the two
+  hypotheses are indistinguishable from the read alone; the unique-best rule
+  resolves the tie by rejecting both, which is exactly where its sensitivity goes.
+  No read-level feature can beat this, which is why the grouped model sits at or
+  below chance in the hardest cells. The way out has to be information the read
+  does not carry: the mate, coverage breadth across NON-conserved windows, and
+  host-virus junction evidence.
+  This independently derives the rubric that the motivating prior-art audit could
+  only label "Supported + inference" -- require unique viral sequence or junction
+  evidence. The benchmark now supplies the reason.
+  The polymorphic case fails differently: there the surviving false positives are
+  only 71.5 percent conserved-window reads at divergence 0.20, with window
+  divergence up to 0.6118, because a genuinely divergent read can still win a
+  competition that does not contain its true source.
+- F017 2026-09-14 [TOOL]: The leakage result is confirmed, larger, and now has its
+  sharpest form. Read-level CV inflates the GBM by up to +0.410 PR AUC (viral_only
+  at divergence 0.10: grouped 0.345, read-level 0.750), and the inflation tracks
+  task difficulty -- it collapses to +0.012 in the easiest cell. At the operating
+  point, read-level reports FPR at 95 percent sensitivity of 0.273 where the honest
+  grouped answer is 0.767, a 2.8-fold understatement.
+  The sharpest form: in the hardest cell the grouped model is BELOW CHANCE
+  (PR AUC 0.138 against a 0.173 prevalence floor, lift 0.80x) while the read-level
+  split reports 2.43x chance. A leaky split does not merely inflate a real signal
+  here -- it manufactures one where the honest answer is "worse than random".
+- F018 2026-09-14 [CODE]: PR AUC is not comparable across these cells. Prevalence
+  ranges from 0.173 to 0.689 because panel composition changes how many reads are
+  called at all, and the PR AUC floor IS the prevalence. Always quote lift over
+  prevalence alongside it, or quote FPR at fixed sensitivity instead.
 
 ## State
 
