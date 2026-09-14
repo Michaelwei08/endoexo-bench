@@ -178,10 +178,24 @@ estimator of something one column already carries.
 
 **The read-level sensitivity ceiling does not propagate to detection.** The tie
 fraction among *true* reads is a hard bound on any tie-rejecting rule -- 76.9% of
-genuine viral reads are ties at divergence 0.02 with a full catalogue, leaving
-22.6% retained. Sample-level detection is nonetheless perfect. Detection needs
-presence, not completeness, so the ceiling constrains *quantification* -- load,
-burden, clonality -- and not the detection call. (Load range tested: 0.56-7.48x.)
+genuine viral reads are ties at divergence 0.02, leaving **23.1%** retained.
+Sample-level detection is nonetheless perfect. Detection needs presence, not
+completeness, so the ceiling constrains *quantification* -- load, burden,
+clonality -- and not the detection call.
+
+A downward load sweep puts a number on that. The three-bin count holds AUC 1.000
+and FPR@95 0.000 down to a **0.11-0.48x** viral coverage band and breaks below
+0.1x. But at 0.02-0.1x an infected sample carries 0.6-2.7 viral read *pairs* in
+expectation, so the dominant limit there is Poisson sampling of a handful of
+molecules, not the filter. And the recommendation is worth **most** at low load:
+at 0.11-0.48x the raw call count is near useless (AUC 0.643, FPR@95 0.833) in
+the same regime where the filtered count is still perfect.
+
+**A complete catalogue is equivalent to having the loci in the assembly**, to
+three digits -- tied fractions 76.9/40.3/19.1% against 76.9/40.3/19.2%, retained
+sensitivity 0.226/0.594/0.804 against 0.226/0.594/0.804. The panel does not care
+how the read's true source got into it, which is the sharpest confirmation that
+presence or absence of the true source is the only thing that matters.
 
 **Coverage breadth fails against the unopposed mechanism, and the mechanism
 predicted it.** Breadth reaches AUC 0.953-0.987 where cross-mapping is confined

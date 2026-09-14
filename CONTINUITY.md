@@ -278,6 +278,44 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   panel is structural rather than seed-dependent -- a tie is impossible when no
   competitor exists. A post-fix no_decoy re-run is in flight to close the gap.
 
+### Load sweep and the post-fix comparison (2026-09-15, closes F038)
+
+- F039 2026-09-15 [TOOL]: A COMPLETE CATALOGUE IS EQUIVALENT TO HAVING THE LOCI IN
+  THE ASSEMBLY, to three digits. Post-normalisation no_decoy against poly_catalogue
+  at divergence 0.02 / 0.10 / 0.20: true tied fraction 76.9 / 40.3 / 19.1 percent
+  versus 76.9 / 40.3 / 19.2, three-bin retained sensitivity 0.226 / 0.594 / 0.804
+  versus 0.226 / 0.594 / 0.804. The panel does not care HOW the read's true source
+  got into it, which is the cleanest possible confirmation that the two-mechanism
+  framing is the right one -- everything reduces to presence or absence of the true
+  source, and nothing else about the panel matters.
+- F040 2026-09-15 [TOOL]: F021's ceiling figure is RESTATED and it moved against us.
+  Post-normalisation, 76.9 percent of true exogenous reads are ties at divergence
+  0.02, not 65.3, so the ceiling on any tie-rejecting rule is 23.1 percent and not
+  34.7. The rate drift of F028 had deflated it. The effect is confined to low
+  divergence: at 0.10 the tied fraction moved 39.4 to 40.3 percent and at 0.20 21.9
+  to 19.1. F038's comparability caveat is closed -- all read-level tie and
+  sensitivity figures should now be quoted from results_nodecoy_postfix and
+  results_catalogue_read.
+- F041 2026-09-15 [TOOL]: THE CEILING BINDS ONLY WHERE THE ASSAY HAS NO MATERIAL.
+  Sweeping viral load downward at divergence 0.10, the three-bin count holds ROC AUC
+  1.000 and FPR at 95 percent sensitivity 0.000 over a 0.107 to 0.481x load band,
+  and breaks at 0.021 to 0.096x -- AUC 0.803, FPR 1.000.
+  The break is not primarily the filter. At 0.02 to 0.1x coverage an infected sample
+  contains 0.6 to 2.7 exogenous read PAIRS in expectation, so many infected samples
+  carry zero viral reads before any filter runs. The dominant limit there is Poisson
+  sampling of a handful of molecules; the ceiling is what turns one or two present
+  reads into zero retained. This strengthens F036 rather than qualifying it: the
+  sensitivity cost is invisible to the detection call everywhere the assay has
+  anything to detect.
+- F042 2026-09-15 [TOOL]: THE RECOMMENDATION IS WORTH MOST EXACTLY WHERE DETECTION
+  MATTERS MOST. The gap between the production statistic and the three-bin count
+  widens as load falls. At 0.107 to 0.481x load, the raw call count reaches FPR at
+  95 percent sensitivity of 0.833 while the unopposed count reaches 0.000 -- the raw
+  count is near useless (ROC AUC 0.643) in the regime where the three-bin count is
+  still perfect. At the original 0.56 to 7.48x band the same contrast was 0.833
+  against 0.000 on AUC 0.801 versus 1.000, so the count degrades with load and the
+  filtered count does not, until the material runs out.
+
 ### F009 re-run under the distributional divergence model (5 panels x 4 divergences x 3 seeds)
 
 - F013 2026-09-14 [TOOL]: ONE CLAUSE SUPERSEDED by F020 the same day -- the
