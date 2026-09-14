@@ -136,55 +136,68 @@ python run_leakage_probe.py --seeds 42 142 242
 
 ## What it has found so far
 
-Simulation only, with the pure-Python ungapped aligner, over 5 panel compositions
-x 4 median divergences x 3 seeds. Directional, not publishable -- see the limits
-below.
+Simulation only, with the pure-Python ungapped aligner, over 6 panel
+compositions x 4 median divergences x 3 seeds, plus 60-sample cohorts.
+Directional, not publishable -- see the limits below.
 
-**1. The three-bin rule is a no-op exactly where the field needs it.** Routing a
-tie to an ambiguous bin is the standard answer to exogenous/endogenous
-ambiguity. When the endogenous locus sits in the reference assembly it works
-almost perfectly on specificity and is expensive:
+### The result
 
-| endogenous locus | false calls before -> after | sensitivity before -> after |
-|---|---|---|
-| in the assembly, divergence 0.02 | 62.8% -> **0.0%** | 0.989 -> **0.343** |
-| in the assembly, divergence 0.20 | 31.1% -> **0.0%** | 0.999 -> 0.780 |
-| absent, consensus decoy, div 0.02 | 69.3% -> 38.5% | 1.000 -> 0.617 |
-| **absent, no decoy** | **82.7% -> 82.7%** | **1.000 -> 1.000** |
+**Exogenous/endogenous confusion is a panel-completeness problem, and it has one
+remedy.** Mis-assignment comes in two mechanisms (see the table above), and which
+one you get is decided entirely by whether the read's true source is in the
+panel: 99.8-100% of false calls are exact ties when it is, and 0.0% are when it
+is not.
 
-The last row is the finding. There are no ties to bin, so the rule changes
-nothing at any divergence.
+That makes the whole problem one question -- *is the panel complete?* -- with a
+single fix on each side of it:
 
-**2. The sensitivity ceiling is computable in advance, from references alone.**
-The fraction of *true* exogenous reads that are themselves ties is a hard bound
-on any tie-rejecting rule: 65.3% of genuine viral reads are ties at divergence
-0.02 with the host in the panel, so no such rule can exceed **34.7%**
-sensitivity. No cohort is needed to know this before running an assay.
+| panel | mechanism | three-bin rule | sample-level detection |
+|---|---|---|---|
+| contains the locus | tie, 100% | removes it: 62.8% -> **0.0%** false | AUC **0.999**, FPR@95 **0.000** |
+| lacks the locus | unopposed, 0% tied | **no-op**: 82.7% -> 82.7% | AUC 0.899, FPR@95 0.467 |
+| lacks it, consensus decoy | mixed, 82% tied | partial: 69.3% -> 38.5% | -- |
+| lacks it, **locus catalogue** | tie, **99.9%** | removes it: **0.8%** false | AUC **1.000**, FPR@95 **0.000** |
 
-**3. The mate rescues the tie mechanism, and only that one.** Ablating all seven
-mate and pair features from the grouped model degrades FPR at 95% sensitivity
-from 0.702 to 0.967 (divergence 0.02) and 0.189 to 0.887 (0.20) where a
-competitor is present -- and changes nothing (0.944 vs 0.958) where none is. The
-mate helps because it lands a fragment away, possibly outside the conserved
-window, where the competition is decidable; with nothing to compete against it
-carries no more information than the read.
+Reading the last two rows against each other is the finding. A family *consensus*
+decoy is a bad proxy for one specific old locus and degrades as the locus ages
+(82% of false calls converted at divergence 0.02, 59% at 0.20). The actual locus
+sequences convert essentially all of them, and the standard rule -- which was
+doing nothing at all one row up -- then becomes sufficient.
 
-**4. A consensus decoy degrades as the locus ages.** It converts unopposed wins
-into detectable ties for 82.1% of false calls at divergence 0.02 but only 59.0%
-at 0.20. The right decoy for polymorphic insertions is locus-resolved, not a
-family consensus.
+**And the statistic in production use is the wrong one.** Pipelines report a read
+count. The same count restricted to unopposed wins moves sample-level FPR at 95%
+sensitivity from 0.633-0.833 to **0.000**. That is the practical recommendation
+and it costs one equality test.
 
-**5. The open problem, as a negative result.** An unopposed win against a young
-endogenous element is not solvable at the read-pair level. The grouped model
-reaches PR AUC 0.138 against a 0.173 prevalence floor -- **below chance**, over
-three seeds. The three-bin rule is a no-op there and the mate is worthless
-there. The remaining routes are above the read pair: coverage breadth over
-non-conserved windows, and host-virus junction evidence.
+### Three things that cut against the obvious reading
 
-**6. Read-level CV gives a different answer, not an optimistic one.** It
-understates FPR at 95% sensitivity in all sixteen cells and by the most where
-the task is hardest (0.646 against a true 0.944), and in the hardest cell it
-reports 2.4x chance where the honest grouped answer is below chance.
+**The learned model does not beat the right single column.** Logistic regression
+over all 14 sample-level features reaches FPR 0.033; the unopposed-call count
+alone reaches 0.000. With 14 features and 60 samples the model is a worse
+estimator of something one column already carries.
+
+**The read-level sensitivity ceiling does not propagate to detection.** The tie
+fraction among *true* reads is a hard bound on any tie-rejecting rule -- 76.9% of
+genuine viral reads are ties at divergence 0.02 with a full catalogue, leaving
+22.6% retained. Sample-level detection is nonetheless perfect. Detection needs
+presence, not completeness, so the ceiling constrains *quantification* -- load,
+burden, clonality -- and not the detection call. (Load range tested: 0.56-7.48x.)
+
+**Coverage breadth fails against the unopposed mechanism, and the mechanism
+predicted it.** Breadth reaches AUC 0.953-0.987 where cross-mapping is confined
+to conserved windows, and 0.396-0.611 -- chance, at a null SE of 0.075 -- where
+it is not. With the true source absent from the panel, reads from *every* window
+of the element win unopposed, so the coverage is broad rather than blocky.
+Uniformity statistics failed in both forms of the mechanism.
+
+### Methodology
+
+**Read-level CV gives a different answer, not an optimistic one.** It understates
+FPR at 95% sensitivity in all sixteen read-level cells, by the most where the
+task is hardest (0.646 against a true 0.944), and in the hardest cell reports
+2.4x chance where the honest grouped answer is *below* chance. The inflation is
+92% attributable to two position features -- the model memorises where each
+endogenous locus lands on the viral reference.
 
 ## Status and honest limits
 

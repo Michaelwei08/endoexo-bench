@@ -207,6 +207,7 @@ def simulate_world(
     herv_spans: dict[str, tuple[int, int]] = {}
     locus_diff: dict[str, np.ndarray] = {}
     locus_div: dict[str, float] = {}
+    locus_seqs: dict[str, np.ndarray] = {}
     filler_chunk = host_filler_bp // (n_herv_loci + 1)
     cursor = 0
     family_mask = np.flatnonzero(herv_consensus != exo_ref)
@@ -221,6 +222,7 @@ def simulate_world(
         diff = (element != exo_ref)
         locus_diff[name] = diff
         locus_div[name] = float(diff.mean())
+        locus_seqs[name] = element.copy()
         pieces.append(element)
         cursor += len(element)
     pieces.append(rng.integers(0, 4, filler_chunk, dtype=np.uint8))
@@ -238,6 +240,12 @@ def simulate_world(
     panel.add("HOST", host, "HOST")
     panel.add("HOST_NOLOCI", host_noloci, "HOST")
     panel.add("HERV_CONSENSUS", herv_consensus, "HERV", provirus_ltrs)
+    # Every endogenous locus as its own reference. Selecting these instead of the
+    # consensus models a COMPLETE population catalogue of insertionally
+    # polymorphic loci -- the best case F022 implies, and the upper bound on what
+    # panel design alone can buy against the unopposed-win mechanism.
+    for name, seq in locus_seqs.items():
+        panel.add(f"HERV_LOCUS_{name.split('_L')[1]}", seq, "HERV", provirus_ltrs)
 
     strain_diff = (exo_strain != exo_ref)
     divs = list(locus_div.values())

@@ -197,6 +197,87 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   purpose: every test corresponds to an invariant a finding depends on or to a
   defect that actually happened here.
 
+### Sample-level detection task (2026-09-15, 60 samples, cohort seed 42, load 0.56-7.48x)
+
+- F030 2026-09-15 [TOOL]: THE REFERENCE-INSERTION CASE IS SOLVED, and the fix is
+  free. Applying the three-bin rule BEFORE counting, rather than counting every
+  read assigned to the exogenous reference, moves sample-level FPR at 95 percent
+  sensitivity from 0.633 to 0.000 at divergence 0.02 and from 0.833 to 0.000 at
+  0.10. ROC AUC 0.768 to 0.999 and 0.801 to 1.000. This is the prescription the
+  benchmark exists to produce: the statistic in production use is a read count,
+  and the same count restricted to unopposed wins is near-perfect.
+- F031 2026-09-15 [TOOL]: The learned model does NOT beat the right single
+  statistic, and saying so is the point. Logistic regression over all 14 sample
+  features reaches FPR 0.067 and 0.033 where the unopposed-call count alone reaches
+  0.000 and 0.000. With 14 features and 60 samples the model is a worse estimator
+  of a quantity one column already carries. A benchmark whose recommendation is
+  "use this column" is a better result than one whose recommendation is "fit this".
+- F032 2026-09-15 [TOOL]: MY PREDICTION FAILED, and the theory that predicted the
+  failure was already in these notes. I expected coverage breadth to break the
+  read-level ceiling in the polymorphic case. It does not: breadth ROC AUC is 0.396
+  at divergence 0.02 and 0.611 at 0.10, both within 1.5 standard errors of chance
+  (null SE 0.075 at 30 versus 30). The reason is in F016, which I wrote and then
+  failed to apply: the conserved-window argument belongs to the TIE mechanism only.
+  When the true source is absent from the panel, reads from EVERY window of the
+  element win unopposed, not just conserved ones, so cross-mapping coverage is
+  broad rather than blocky and breadth has nothing to separate.
+  The contrast confirms the mechanism rather than the hypothesis: breadth reaches
+  AUC 0.953 and 0.987 in the reference-insertion case, where cross-mapping IS
+  confined to conserved windows.
+  Uniformity failed everywhere it was tested -- max_bin_frac AUC 0.596 and 0.496 in
+  the polymorphic case -- so "cross-mapping looks blocky" was the wrong intuition
+  for this mechanism in both of its forms.
+- F033 2026-09-15 [TOOL]: The polymorphic case is now unsolved at ALL THREE
+  granularities: read level at or below chance (F026), read pair no better (F025),
+  and sample level topping out at ROC AUC 0.899 / 0.720 with FPR at 95 percent
+  sensitivity of 0.467 / 0.833 -- from the raw call count, with nothing beating it.
+  The three-bin count is identical to the raw count there, exactly as F024 predicts.
+- F034 2026-09-15 [ASSUMPTION]: Unexplained and worth a second cohort seed before it
+  is quoted -- the raw count discriminates BETTER at divergence 0.02 (AUC 0.899)
+  than at 0.10 (0.720), which is the opposite of the read-level ordering. The
+  hypothesis is that a count's discriminating power depends on the VARIANCE of the
+  cross-mapping background across samples rather than its magnitude, and per-locus
+  divergence spreads more in absolute terms at higher median divergence. One cohort
+  seed cannot support that.
+
+### Complete locus catalogue: the polymorphic case is a PANEL problem (2026-09-15)
+
+- F035 2026-09-15 [TOOL]: THE PRESCRIPTION IS COMPLETE. Putting the actual
+  polymorphic locus sequences in the panel -- a complete population catalogue,
+  which is the upper bound on what panel design can buy -- converts 99.8 to 100.0
+  percent of the unopposed wins into detectable exact ties, at divergence 0.02 /
+  0.10 / 0.20 over three seeds. Against the same panel without the catalogue the
+  tied fraction is 0.0 percent. The three-bin rule, a complete no-op there (F024),
+  then removes essentially all of them: false call fraction 0.8 / 0.2 / 0.0 percent
+  against 82.6 percent before.
+  At sample level the effect is total. The unopposed-call count goes from ROC AUC
+  0.899 with FPR at 95 percent sensitivity 0.467 (no catalogue, divergence 0.02) to
+  ROC AUC 1.000 and FPR 0.000, and the same at divergence 0.10.
+  So the unopposed-win mechanism is not an analysis problem. It is a panel
+  COMPLETENESS problem, and completing the panel reduces it to the mechanism the
+  field already knows how to handle.
+- F036 2026-09-15 [TOOL]: The read-level sensitivity ceiling (F021) does NOT
+  propagate to the sample-level decision at these viral loads, and that materially
+  softens F015. With the catalogue at divergence 0.02 the three-bin rule retains
+  only 0.226 of true exogenous reads -- and sample-level detection is still
+  PERFECT, ROC AUC 1.000 and FPR 0.000. Detection needs presence, not completeness;
+  throwing away three quarters of the true reads costs nothing when the question is
+  whether the sample is infected at all.
+  The ceiling should therefore be quoted as a constraint on QUANTIFICATION -- viral
+  load, clonality, burden -- and not on detection. Load range here was 0.56 to 7.48
+  x; a downward load sweep is running to find where it starts to bind.
+- F037 2026-09-15 [TOOL]: A bigger panel costs more sensitivity, as it must. The
+  catalogue adds competitors, so more TRUE reads become ties: 76.9 percent of true
+  reads are tied at divergence 0.02 with the catalogue. Panel completeness and read
+  retention trade against each other directly, and the trade is worth making only
+  because of F036.
+- F038 2026-09-15 [CODE]: Comparability caveat. results_catalogue_* were produced
+  AFTER the rate normalisation of F028 and results_typology BEFORE it, so the
+  sensitivity figures are not directly comparable across those files. The tied
+  FRACTION comparison is safe because 0.0 percent tied without the locus in the
+  panel is structural rather than seed-dependent -- a tie is impossible when no
+  competitor exists. A post-fix no_decoy re-run is in flight to close the gap.
+
 ### F009 re-run under the distributional divergence model (5 panels x 4 divergences x 3 seeds)
 
 - F013 2026-09-14 [TOOL]: ONE CLAUSE SUPERSEDED by F020 the same day -- the

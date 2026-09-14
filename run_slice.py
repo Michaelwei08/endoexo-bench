@@ -25,7 +25,23 @@ PANEL_MODES = {
     # host assembly LACKS them (insertionally polymorphic, non-reference loci)
     "poly_no_decoy": ("EXO_REF", "HOST_NOLOCI"),
     "poly_full": ("EXO_REF", "HOST_NOLOCI", "HERV_CONSENSUS"),
+    # ... plus a COMPLETE catalogue of the polymorphic loci themselves, which is
+    # the upper bound on what panel design can buy. HERV_LOCI is a wildcard for
+    # every HERV_LOCUS_nn reference.
+    "poly_catalogue": ("EXO_REF", "HOST_NOLOCI", "HERV_LOCI"),
 }
+
+
+def restrict_panel(panel, panel_mode: str) -> None:
+    """Drop every reference the mode does not select, in place."""
+    keep = PANEL_MODES[panel_mode]
+    wildcard = "HERV_LOCI" in keep
+    for ref_id in list(panel.refs):
+        if ref_id in keep or (wildcard and ref_id.startswith("HERV_LOCUS_")):
+            continue
+        del panel.refs[ref_id]
+        del panel.categories[ref_id]
+        panel.ltr_spans.pop(ref_id, None)
 
 
 def run_point(divergence: float, *, panel_mode: str = "full", seed: int = 42,
@@ -42,12 +58,7 @@ def run_point(divergence: float, *, panel_mode: str = "full", seed: int = 42,
         rate_jitter_shape=rate_jitter_shape, sigma_locus=sigma_locus,
         sigma_strain=sigma_strain, seed=seed)
 
-    keep = PANEL_MODES[panel_mode]
-    for ref_id in list(panel.refs):
-        if ref_id not in keep:
-            del panel.refs[ref_id]
-            del panel.categories[ref_id]
-            panel.ltr_spans.pop(ref_id, None)
+    restrict_panel(panel, panel_mode)
 
     reads = simulate_reads(exo_strain, host, herv_spans, meta, exo_depth=exo_depth,
                            host_depth=host_depth, read_len=read_len, seed=seed + 1)

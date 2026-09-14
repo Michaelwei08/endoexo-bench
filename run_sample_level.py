@@ -47,7 +47,7 @@ from sklearn.model_selection import StratifiedKFold
 from endoexo.align import PanelIndex, features_for_pair
 from endoexo.evaluate import _make_model, fpr_at_sensitivity
 from endoexo.simulate import simulate_reads, simulate_world
-from run_slice import PANEL_MODES
+from run_slice import PANEL_MODES, restrict_panel
 
 SAMPLE_FEATURES = [
     "n_calls", "n_calls_unopposed", "tie_frac",
@@ -95,13 +95,8 @@ def one_sample(divergence: float, panel_mode: str, cohort_seed: int,
         divergence, n_herv_loci=n_herv_loci, host_filler_bp=host_filler_bp,
         seed=cohort_seed, sample_seed=cohort_seed * 1000 + sample_index)
 
-    keep = PANEL_MODES[panel_mode]
     ref_len = len(panel.refs["EXO_REF"])
-    for ref_id in list(panel.refs):
-        if ref_id not in keep:
-            del panel.refs[ref_id]
-            del panel.categories[ref_id]
-            panel.ltr_spans.pop(ref_id, None)
+    restrict_panel(panel, panel_mode)
 
     reads = simulate_reads(exo_strain, host, herv_spans, meta,
                            exo_depth=exo_depth, host_depth=host_depth,
