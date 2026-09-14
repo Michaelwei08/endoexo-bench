@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+results_*.json
+figures/
+data/
