@@ -31,6 +31,7 @@ from endoexo import simulate
 from endoexo.align import (MATCH, MISMATCH, Hit, _best_local, _tie_structure,
                            revcomp)
 from endoexo.evaluate import fpr_at_sensitivity
+from compare_with_bwa import parse_sam, softclip_len
 from run_sample_level import coverage_profile
 
 
@@ -239,6 +240,96 @@ class TestCoverageProfile(unittest.TestCase):
         self.assertEqual(p["breadth_1x"], 0.0)
         self.assertEqual(p["max_bin_frac"], 0.0)
         self.assertEqual(p["depth_cv"], 0.0)
+
+
+class TestBwaSamParsing(unittest.TestCase):
+    """The comparison script must be tested BEFORE it is handed to someone whose
+    sudo is needed to produce its input. An untested parser waiting on an
+    install is a way to waste another person's time."""
+
+    CATS = {"EXO_REF": "EXO", "HOST": "HOST", "HOST_NOLOCI": "HOST"}
+
+    def _sam(self, records):
+        import tempfile
+        nl, tab = chr(10), chr(9)
+        fh = tempfile.NamedTemporaryFile("w", suffix=".sam", delete=False,
+                                         encoding="ascii", newline=nl)
+        fh.write(f"@HD{tab}VN:1.6{nl}@SQ{tab}SN:EXO_REF{tab}LN:8510{nl}")
+        for r in records:
+            fh.write(tab.join(str(x) for x in r) + nl)
+        fh.close()
+        return Path(fh.name)
+
+    @staticmethod
+    def _rec(name, flag, ref, cigar="150M", tags=("AS:i:150",)):
+        return [name, flag, ref, 1, 60, cigar, "=", 200, 350,
+                "A" * 150, "I" * 150, *tags]
+
+    def test_softclip_both_ends(self):
+        self.assertEqual(softclip_len("10S130M10S"), 20)
+        self.assertEqual(softclip_len("150M"), 0)
+        self.assertEqual(softclip_len("20S130M"), 20)
+        self.assertEqual(softclip_len("130M20S"), 20)
+        self.assertEqual(softclip_len("10S60M5I65M10S"), 20)
+
+    def test_cross_category_tie_is_flagged(self):
+        sam = self._sam([
+            self._rec("r1", 65, "EXO_REF", tags=("AS:i:150",)),
+            self._rec("r1", 65 | 0x100, "HOST", tags=("AS:i:150",)),
+        ])
+        f = parse_sam(sam, self.CATS)["r1"]
+        self.assertEqual(f["n_tied_top_categories"], 2)
+        self.assertEqual(f["as_minus_xs"], 0)
+        self.assertEqual(f["AS"], 150)
+
+    def test_clear_winner_gives_a_positive_gap(self):
+        sam = self._sam([
+            self._rec("r2", 65, "EXO_REF", tags=("AS:i:150",)),
+            self._rec("r2", 65 | 0x100, "HOST", tags=("AS:i:120",)),
+        ])
+        f = parse_sam(sam, self.CATS)["r2"]
+        self.assertEqual(f["n_tied_top_categories"], 1)
+        self.assertEqual(f["as_minus_xs"], 30)
+        self.assertEqual(f["best_cat"], "EXO")
+
+    def test_same_category_tie_is_not_ambiguous(self):
+        """Two host references tied at the top still decide the CATEGORY."""
+        sam = self._sam([
+            self._rec("r3", 65, "HOST", tags=("AS:i:150",)),
+            self._rec("r3", 65 | 0x100, "HOST_NOLOCI", tags=("AS:i:150",)),
+            self._rec("r3", 65 | 0x100, "EXO_REF", tags=("AS:i:100",)),
+        ])
+        f = parse_sam(sam, self.CATS)["r3"]
+        self.assertEqual(f["n_tied_top"], 2)
+        self.assertEqual(f["n_tied_top_categories"], 1)
+        self.assertEqual(f["as_minus_xs"], 50)
+
+    def test_max_score_per_reference_is_kept(self):
+        sam = self._sam([
+            self._rec("r4", 65, "EXO_REF", tags=("AS:i:120",)),
+            self._rec("r4", 65 | 0x100, "EXO_REF", tags=("AS:i:145",)),
+            self._rec("r4", 65 | 0x100, "HOST", tags=("AS:i:100",)),
+        ])
+        f = parse_sam(sam, self.CATS)["r4"]
+        self.assertEqual(f["AS"], 145)
+        self.assertEqual(f["as_minus_xs"], 45)
+
+    def test_unmapped_missing_tag_and_second_end_are_excluded(self):
+        sam = self._sam([
+            self._rec("unmapped", 77, "*"),
+            self._rec("no_as", 65, "EXO_REF", tags=("NM:i:0",)),
+            self._rec("second_end_only", 129, "EXO_REF", tags=("AS:i:150",)),
+            self._rec("kept", 65, "EXO_REF", tags=("AS:i:150",)),
+        ])
+        got = parse_sam(sam, self.CATS)
+        self.assertEqual(set(got), {"kept"})
+
+    def test_softclip_comes_from_the_primary_record(self):
+        sam = self._sam([
+            self._rec("r5", 65, "EXO_REF", cigar="20S130M", tags=("AS:i:130",)),
+            self._rec("r5", 65 | 0x100, "HOST", cigar="150M", tags=("AS:i:100",)),
+        ])
+        self.assertEqual(parse_sam(sam, self.CATS)["r5"]["softclip_len"], 20)
 
 
 if __name__ == "__main__":

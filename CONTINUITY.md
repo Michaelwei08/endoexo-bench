@@ -197,6 +197,42 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   purpose: every test corresponds to an invariant a finding depends on or to a
   defect that actually happened here.
 
+### B: real BWA-MEM reproduction (2026-09-15, scaffolded, BLOCKED on one user action)
+
+- D013 ACTIVE 2026-09-15 [CODE]: The BWA comparison runs the SAME simulated reads
+  through both aligners. export_for_bwa.py writes panel.fa, paired FASTQ and a
+  separate truth.tsv; run_bwa.sh aligns with `bwa mem -a -k 19`; compare_with_bwa.py
+  reproduces the tie typology from the SAM. -a is not optional: a read tied between
+  the exogenous reference and the host is reported against one of them arbitrarily,
+  with the other present only as a secondary record, so the category tie structure
+  cannot be recovered from primary records alone.
+- D014 ACTIVE 2026-09-15 [CODE]: Truth lives in a separate file, never in the read
+  name. A name that carries its own label is a label leak waiting for the first
+  person who parses it.
+- F043 2026-09-15 [ASSUMPTION]: PREDICTION ON RECORD, before the numbers exist. The
+  two aligners break ties differently and both are defensible: the first-party one
+  sorts by score alone so a tie resolves to whichever reference entered the panel
+  first, in practice the exogenous one, while BWA picks a primary essentially
+  arbitrarily and will therefore report roughly half the tied reads against the host.
+  So the award_ties_to_exo call count MUST differ, with the first-party number the
+  pessimistic bound, and the three_bin_ambiguous numbers SHOULD agree because that
+  policy excludes ties under either tie-break. If they agree, that is a further
+  argument for the three-bin policy: it is the only policy whose output does not
+  depend on an arbitrary implementation choice inside the aligner.
+- F044 2026-09-15 [TOOL]: The decisive number is not the tied fraction, it is the
+  distribution of AS - XS among false calls. Under the ungapped aligner it is a spike
+  at exactly 0. If gapped alignment spreads it to 1 or 2, "free to detect" becomes
+  "needs a threshold" and the binary decomposition softens into a tuning problem.
+  compare_with_bwa.py prints that distribution explicitly for that reason.
+- 2026-09-15 [TOOL]: Export verified: 8,623 read pairs, 2 references, 310,622 bp,
+  5.8 MB. Seven tests added for the SAM parser, because handing an untested parser to
+  someone whose sudo is needed to produce its input wastes their time. 33 tests pass.
+- 2026-09-15 [USER-ACTION-REQUIRED]: bwa 0.7.17-7 and samtools are in the WSL2 Ubuntu
+  24.04 apt repository but not installed, and installing needs a password this session
+  cannot supply:
+      wsl -e bash -lc 'sudo apt-get update && sudo apt-get install -y bwa samtools'
+  After that, everything else is two commands and needs no further decisions.
+
 ### Sample-level detection task (2026-09-15, 60 samples, cohort seed 42, load 0.56-7.48x)
 
 - F030 2026-09-15 [TOOL]: THE REFERENCE-INSERTION CASE IS SOLVED, and the fix is

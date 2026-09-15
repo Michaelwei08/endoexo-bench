@@ -4,3 +4,8 @@ __pycache__/
 # results/ is COMMITTED on purpose: it is what makes the README numbers checkable
 figures/
 data/
+bwa_compare/
+*.sam
+*.bam
+*.bam.bai
+*.fastq
