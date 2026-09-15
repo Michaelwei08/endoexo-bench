@@ -1,6 +1,6 @@
 __pycache__/
 *.pyc
 .venv/
-results_*.json
+# results/ is COMMITTED on purpose: it is what makes the README numbers checkable
 figures/
 data/

@@ -1,0 +1,137 @@
+[
+  {
+    "divergence": 0.1,
+    "panel_mode": "no_decoy",
+    "n_samples": 60,
+    "n_infected": 30,
+    "cohort_seed": 42,
+    "viral_load_range": [
+      0.107,
+      0.481
+    ],
+    "single_scores": {
+      "n_calls": {
+        "roc_auc": 0.6428,
+        "fpr_at_95_sens": 0.8333
+      },
+      "n_calls_unopposed": {
+        "roc_auc": 1.0,
+        "fpr_at_95_sens": 0.0
+      },
+      "breadth_1x": {
+        "roc_auc": 0.7711,
+        "fpr_at_95_sens": 0.7
+      },
+      "max_bin_frac": {
+        "roc_auc": 0.5767,
+        "fpr_at_95_sens": 0.8333
+      },
+      "depth_cv": {
+        "roc_auc": 0.6,
+        "fpr_at_95_sens": 0.9
+      }
+    },
+    "model": {
+      "logreg": {
+        "roc_auc": 1.0,
+        "fpr_at_95_sens": 0.0
+      },
+      "gbm": {
+        "roc_auc": 1.0,
+        "fpr_at_95_sens": 0.0
+      }
+    },
+    "n_splits": 5,
+    "seconds": 105.4
+  },
+  {
+    "divergence": 0.1,
+    "panel_mode": "poly_catalogue",
+    "n_samples": 60,
+    "n_infected": 30,
+    "cohort_seed": 42,
+    "viral_load_range": [
+      0.107,
+      0.481
+    ],
+    "single_scores": {
+      "n_calls": {
+        "roc_auc": 0.6444,
+        "fpr_at_95_sens": 0.8
+      },
+      "n_calls_unopposed": {
+        "roc_auc": 0.9933,
+        "fpr_at_95_sens": 0.0667
+      },
+      "breadth_1x": {
+        "roc_auc": 0.7756,
+        "fpr_at_95_sens": 0.7
+      },
+      "max_bin_frac": {
+        "roc_auc": 0.5833,
+        "fpr_at_95_sens": 0.8333
+      },
+      "depth_cv": {
+        "roc_auc": 0.6078,
+        "fpr_at_95_sens": 0.9
+      }
+    },
+    "model": {
+      "logreg": {
+        "roc_auc": 0.9978,
+        "fpr_at_95_sens": 0.0333
+      },
+      "gbm": {
+        "roc_auc": 1.0,
+        "fpr_at_95_sens": 0.0
+      }
+    },
+    "n_splits": 5,
+    "seconds": 143.6
+  },
+  {
+    "divergence": 0.1,
+    "panel_mode": "poly_no_decoy",
+    "n_samples": 60,
+    "n_infected": 30,
+    "cohort_seed": 42,
+    "viral_load_range": [
+      0.107,
+      0.481
+    ],
+    "single_scores": {
+      "n_calls": {
+        "roc_auc": 0.6411,
+        "fpr_at_95_sens": 0.9
+      },
+      "n_calls_unopposed": {
+        "roc_auc": 0.6411,
+        "fpr_at_95_sens": 0.9
+      },
+      "breadth_1x": {
+        "roc_auc": 0.5294,
+        "fpr_at_95_sens": 0.7667
+      },
+      "max_bin_frac": {
+        "roc_auc": 0.53,
+        "fpr_at_95_sens": 0.9667
+      },
+      "depth_cv": {
+        "roc_auc": 0.6233,
+        "fpr_at_95_sens": 0.8
+      }
+    },
+    "model": {
+      "logreg": {
+        "roc_auc": 0.5689,
+        "fpr_at_95_sens": 0.8333
+      },
+      "gbm": {
+        "roc_auc": 0.6578,
+        "fpr_at_95_sens": 0.8667
+      }
+    },
+    "n_splits": 5,
+    "seconds": 101.2
+  }
+]
