@@ -5,14 +5,20 @@ convention rather than by measurement: **when a read aligns to an exogenous
 retrovirus reference, did it come from the virus, or from an endogenous
 retroelement in the host genome?**
 
-Existing HERV tooling splits into DNA insertion callers (ERVcaller, MELT,
-RetroSeq, STEAK, xTea) and RNA expression quantifiers (Telescope, ERVmap).
-Neither addresses the exogenous/endogenous confusion at the alignment level.
-The rules used in practice to resolve it -- competitive alignment against a
-host reference, a mapping-quality floor, a unique-best `AS > XS` test, an
-aligned-length floor -- are reasonable, widely used, and as far as this
-project's prior-art check has established, **never benchmarked against ground
-truth**.
+Prior work attacks this question with discriminators orthogonal to alignment:
+intra-host genetic diversity, which separates a recently coalescing exogenous
+infection from an ancient endogenous element, and epigenetic signature. At the
+alignment level, ERVmancer resolves read ambiguity *between* HERV loci by
+phylogenetic placement, and quantifies the resolution limit that sequence
+homology imposes.
+
+What has not been measured, as far as the prior-art check in
+[PRIOR_ART.md](PRIOR_ART.md) establishes, is what the rules actually running in
+production do: competitive alignment against a host reference, a mapping-quality
+floor, a unique-best `AS > XS` test, an aligned-length floor, and an ambiguous
+bin. **No claim of novelty is made here** -- four of the five things this
+project was originally positioned on turned out to be published, and the claim
+matrix records which.
 
 ## Why this can be benchmarked at all
 
@@ -124,14 +130,35 @@ version of this harness reported perfect separation at every divergence above
 endoexo/simulate.py   panel + read simulation, truth attached to every read
 endoexo/align.py      competitive ungapped local alignment, per-read features
 endoexo/evaluate.py   production-rule baselines, learned models, CV schemes
-run_slice.py          one divergence x panel point, end to end
+run_slice.py          one divergence x panel point, READ level, end to end
+run_sample_level.py   the SAMPLE-level detection task over a simulated cohort
 run_leakage_probe.py  isolates the read-level-CV inflation and tests its mechanism
+export_for_bwa.py     writes panel.fa, paired FASTQ and a separate truth.tsv
+run_bwa.sh            aligns the exported reads with real BWA-MEM (run in WSL)
+compare_with_bwa.py   reproduces the tie typology from the SAM, for comparison
+tests/                33 tests over the invariants the findings rest on
+results/              committed outputs; every README number traces to one
+PRIOR_ART.md          adversarial claim matrix. Read it before citing anything.
 ```
 
 ```sh
-python run_slice.py --divergence 0.02 0.05 0.10 0.20 \
-                    --panel-mode viral_only no_decoy full --out results.json
+python run_slice.py        --divergence 0.02 0.05 0.10 0.20 \
+                          --panel-mode viral_only no_decoy full poly_no_decoy poly_catalogue \
+                          --seed 42 142 242 --out results/results_typology.json
+python run_sample_level.py --divergence 0.02 0.10 --panel-mode no_decoy poly_catalogue \
+                          --n-samples 60 --out results/results_catalogue_sample.json
 python run_leakage_probe.py --seeds 42 142 242
+python -m unittest discover -s tests -t .
+```
+
+The BWA-MEM comparison needs `bwa` and `samtools`, which on this machine means
+WSL and one privileged install:
+
+```sh
+sudo apt-get update && sudo apt-get install -y bwa samtools   # once
+python export_for_bwa.py --divergence 0.10 --panel-mode no_decoy --outdir bwa_compare
+bash run_bwa.sh bwa_compare
+python compare_with_bwa.py bwa_compare
 ```
 
 ## What it has found so far

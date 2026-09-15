@@ -197,6 +197,50 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   purpose: every test corresponds to an invariant a finding depends on or to a
   defect that actually happened here.
 
+### C: fresh adversarial prior-art check (2026-09-15) -- see PRIOR_ART.md
+
+- F045 2026-09-15 [TOOL]: FOUR OF FIVE POSITIONING CLAIMS ARE DEAD. The question is
+  not unasked: Hayward et al. 2015 answer it with intra-host genetic diversity and
+  a 2025 J Virol paper answers it with epigenetic signature. The absent-from-assembly
+  simulation design recorded as F008 was published in the 2022 Frontiers assessment,
+  which removes the proviruses from the reference and aligns simulated FASTQs to the
+  edited genome with BWA-MEM. Exact-score ties and the arbitrariness of resolving
+  them are stated verbatim in MGmapper 2017. A reference-only resolution ceiling as a
+  function of read length is Umap/Bismap 2018, and ERVmancer 2026 computes it for
+  retroelements specifically -- 12.7 internal clades above the leaf at 75 bp, 634
+  HERVH-LTR7 elements sharing 2.8 percent of their reads -- and frames it as
+  irreducible ambiguity. That last one is the scientific idea I described as the one
+  I most wanted to write; it is substantially published for a different reference
+  pair.
+- F046 2026-09-15 [TOOL]: THE CHECK CAUGHT A LIVE OVERCLAIM, which is what it is for.
+  "Existing tools address neither case at the alignment level" went onto cv.md and
+  cv-mle.md about an hour before this pass and is false: ERVmancer addresses read
+  ambiguity at the alignment level by phylogenetic placement. Both resumes are
+  corrected and the README paragraph is reframed.
+- F047 2026-09-15 [TOOL]: What plausibly survives is narrower and is a MEASUREMENT
+  rather than a question: the quantitative dichotomy by panel completeness (P6), the
+  measured cost and benefit of the ambiguous-bin policy at two granularities (P7),
+  the grouped-versus-read-level CV result on this task (P8), and catalogue-equals-
+  assembly (P9). Each needs a targeted second pass aimed at itself rather than at the
+  general question.
+- F048 2026-09-15 [TOOL]: One result is now a CONSISTENCY check rather than a finding,
+  and that is worth more than novelty here. Hayward et al. state as their own
+  limitation that very recent endogenous retroviruses have not accumulated enough
+  change to be identified as endogenous. My hardest cell -- young elements, below
+  chance at read-pair level -- reproduces exactly that limitation by a completely
+  different route. Report it as agreement.
+- F049 2026-09-15 [ASSUMPTION]: THE ITEM THAT COULD CHANGE THE CONCLUSION RATHER THAN
+  THE WORDING. Hayward's intra-host diversity statistic does not need the alignment
+  panel to be complete. If it works in the regime where the alignment-level rules
+  fail -- unopposed wins against young elements -- then it is a better answer than
+  anything measured in this repository, and the honest conclusion becomes "use a
+  diversity statistic, not a better filter". That must be tested before the write-up,
+  not after. It is now the highest-value experiment outstanding.
+- D015 ACTIVE 2026-09-15 [CODE]: No wording of the form first, novel, unaddressed, no
+  benchmark exists, or existing tools do not address. PRIOR_ART.md is the record and
+  it is adversarial by construction: its purpose was to find work that pre-empts each
+  claim, not work that supports the project.
+
 ### B: real BWA-MEM reproduction (2026-09-15, scaffolded, BLOCKED on one user action)
 
 - D013 ACTIVE 2026-09-15 [CODE]: The BWA comparison runs the SAME simulated reads
