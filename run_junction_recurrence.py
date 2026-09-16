@@ -179,6 +179,38 @@ def evaluate(samples, spec, bin_size: int, min_support: int) -> dict:
             misses += 1
     out["true_integration_recovered"] = {"hit": hits, "miss": misses}
 
+    # F064a: DECOMPOSE the non-private integrations by what they collide with.
+    # Without this the sensitivity figure is uninterpretable: collision with
+    # another integration is a simulation-scale artefact that a real genome does
+    # not have, collision with an endogenous locus is a real failure mode, and a
+    # spurious recurrent bin is a third thing entirely.
+    true_bins = {i: s["true_exo_coord"] // bin_size
+                 for i, s in enumerate(samples) if s["infected"]}
+    endo_bins = {spec.locus_coord[n] // bin_size for n in spec.locus_coord}
+    reasons = {"private_ok": 0, "collided_with_integration": 0,
+               "collided_with_endogenous": 0, "collided_with_spurious": 0,
+               "not_detected": 0}
+    for i, s in enumerate(samples):
+        if not s["infected"]:
+            continue
+        tb = true_bins[i]
+        if not any(abs(b - tb) <= 1 for b in bins_per_sample[i]):
+            reasons["not_detected"] += 1
+            continue
+        if bin_sample_count.get(tb, 0) <= 1:
+            reasons["private_ok"] += 1
+            continue
+        others_with_integration = any(
+            j != i and abs(true_bins[j] - tb) <= 1 for j in true_bins)
+        near_endo = any(abs(b - tb) <= 1 for b in endo_bins)
+        if others_with_integration:
+            reasons["collided_with_integration"] += 1
+        elif near_endo:
+            reasons["collided_with_endogenous"] += 1
+        else:
+            reasons["collided_with_spurious"] += 1
+    out["non_private_decomposition"] = reasons
+
     # A true integration can be DETECTED and still not counted as private, if its
     # bin collides with another sample's integration or with an endogenous locus.
     # That loss is a function of genome size: with a backbone of B bases and bin
@@ -188,11 +220,18 @@ def evaluate(samples, spec, bin_size: int, min_support: int) -> dict:
     # so the number is recorded to be discounted, not to be quoted.
     n_bins_available = len(spec.backbone) // bin_size
     k = int(y.sum())
+    # The +/-1 bin tolerance in the recovery check makes each integration occupy
+    # THREE bins, not one. Omitting that underestimated the expected collisions by
+    # a factor of three and made the observed gap look partly unexplained.
+    effective = 3.0 / n_bins_available
     out["collision_scale"] = {
         "bins_available": n_bins_available,
         "n_integrations": k,
-        "expected_colliding_pairs": round(k * (k - 1) / (2 * n_bins_available), 3),
-        "note": "artefact of the simulated backbone size, not of the method",
+        "bins_per_integration_with_tolerance": 3,
+        "expected_colliding_pairs": round(k * (k - 1) / 2 * effective, 3),
+        "expected_samples_involved": round(k * (k - 1) * effective, 2),
+        "note": "artefact of the simulated backbone size, not of the method; a "
+                "3 Gb genome at this bin size gives about 6e6 bins",
     }
 
     # And do the endogenous loci recur at roughly their population frequency?

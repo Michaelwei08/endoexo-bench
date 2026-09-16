@@ -1,0 +1,240 @@
+[
+  {
+    "bin_size": 500,
+    "min_support": 2,
+    "n_samples": 50,
+    "n_infected": 25,
+    "n_junction_bins_total": 39,
+    "n_private_junction_bins": {
+      "roc_auc": 0.7824,
+      "mean_infected": 0.72,
+      "mean_uninfected": 0.04,
+      "fpr_at_95_sens_DEGENERATE": 1.0,
+      "at_threshold_1": {
+        "sensitivity": 0.6,
+        "fpr": 0.04,
+        "specificity": 0.96
+      }
+    },
+    "n_junction_bins": {
+      "roc_auc": 0.5824,
+      "mean_infected": 7.92,
+      "mean_uninfected": 6.96,
+      "fpr_at_95_sens_DEGENERATE": 0.8,
+      "at_threshold_1": {
+        "sensitivity": 1.0,
+        "fpr": 1.0,
+        "specificity": 0.0
+      }
+    },
+    "true_integration_recovered": {
+      "hit": 22,
+      "miss": 3
+    },
+    "non_private_decomposition": {
+      "private_ok": 16,
+      "collided_with_integration": 6,
+      "collided_with_endogenous": 0,
+      "collided_with_spurious": 0,
+      "not_detected": 3
+    },
+    "collision_scale": {
+      "bins_available": 200,
+      "n_integrations": 25,
+      "expected_colliding_pairs": 1.5,
+      "note": "artefact of the simulated backbone size, not of the method"
+    },
+    "endogenous_loci": [
+      {
+        "locus": "HERV_L00",
+        "population_frequency": 0.374,
+        "samples_with_junction": 22,
+        "observed_fraction": 0.44
+      },
+      {
+        "locus": "HERV_L01",
+        "population_frequency": 0.731,
+        "samples_with_junction": 35,
+        "observed_fraction": 0.7
+      },
+      {
+        "locus": "HERV_L02",
+        "population_frequency": 0.519,
+        "samples_with_junction": 26,
+        "observed_fraction": 0.52
+      },
+      {
+        "locus": "HERV_L03",
+        "population_frequency": 0.719,
+        "samples_with_junction": 33,
+        "observed_fraction": 0.66
+      },
+      {
+        "locus": "HERV_L04",
+        "population_frequency": 0.646,
+        "samples_with_junction": 37,
+        "observed_fraction": 0.74
+      },
+      {
+        "locus": "HERV_L05",
+        "population_frequency": 0.543,
+        "samples_with_junction": 28,
+        "observed_fraction": 0.56
+      },
+      {
+        "locus": "HERV_L06",
+        "population_frequency": 0.58,
+        "samples_with_junction": 25,
+        "observed_fraction": 0.5
+      },
+      {
+        "locus": "HERV_L07",
+        "population_frequency": 0.466,
+        "samples_with_junction": 21,
+        "observed_fraction": 0.42
+      },
+      {
+        "locus": "HERV_L08",
+        "population_frequency": 0.179,
+        "samples_with_junction": 9,
+        "observed_fraction": 0.18
+      },
+      {
+        "locus": "HERV_L09",
+        "population_frequency": 0.509,
+        "samples_with_junction": 24,
+        "observed_fraction": 0.48
+      }
+    ],
+    "recurrence_distribution": {
+      "n_bins": 39,
+      "private_bins": 19,
+      "private_fraction": 0.4872,
+      "max_samples_in_one_bin": 37,
+      "median": 2
+    },
+    "divergence": 0.1,
+    "clonal_fraction": 0.6,
+    "cohort_seed": 42,
+    "seconds": 43.3
+  },
+  {
+    "bin_size": 500,
+    "min_support": 2,
+    "n_samples": 50,
+    "n_infected": 25,
+    "n_junction_bins_total": 45,
+    "n_private_junction_bins": {
+      "roc_auc": 0.824,
+      "mean_infected": 0.88,
+      "mean_uninfected": 0.04,
+      "fpr_at_95_sens_DEGENERATE": 1.0,
+      "at_threshold_1": {
+        "sensitivity": 0.68,
+        "fpr": 0.04,
+        "specificity": 0.96
+      }
+    },
+    "n_junction_bins": {
+      "roc_auc": 0.5936,
+      "mean_infected": 7.96,
+      "mean_uninfected": 6.96,
+      "fpr_at_95_sens_DEGENERATE": 0.8,
+      "at_threshold_1": {
+        "sensitivity": 1.0,
+        "fpr": 1.0,
+        "specificity": 0.0
+      }
+    },
+    "true_integration_recovered": {
+      "hit": 25,
+      "miss": 0
+    },
+    "non_private_decomposition": {
+      "private_ok": 16,
+      "collided_with_integration": 9,
+      "collided_with_endogenous": 0,
+      "collided_with_spurious": 0,
+      "not_detected": 0
+    },
+    "collision_scale": {
+      "bins_available": 200,
+      "n_integrations": 25,
+      "expected_colliding_pairs": 1.5,
+      "note": "artefact of the simulated backbone size, not of the method"
+    },
+    "endogenous_loci": [
+      {
+        "locus": "HERV_L00",
+        "population_frequency": 0.374,
+        "samples_with_junction": 22,
+        "observed_fraction": 0.44
+      },
+      {
+        "locus": "HERV_L01",
+        "population_frequency": 0.731,
+        "samples_with_junction": 35,
+        "observed_fraction": 0.7
+      },
+      {
+        "locus": "HERV_L02",
+        "population_frequency": 0.519,
+        "samples_with_junction": 26,
+        "observed_fraction": 0.52
+      },
+      {
+        "locus": "HERV_L03",
+        "population_frequency": 0.719,
+        "samples_with_junction": 33,
+        "observed_fraction": 0.66
+      },
+      {
+        "locus": "HERV_L04",
+        "population_frequency": 0.646,
+        "samples_with_junction": 37,
+        "observed_fraction": 0.74
+      },
+      {
+        "locus": "HERV_L05",
+        "population_frequency": 0.543,
+        "samples_with_junction": 27,
+        "observed_fraction": 0.54
+      },
+      {
+        "locus": "HERV_L06",
+        "population_frequency": 0.58,
+        "samples_with_junction": 24,
+        "observed_fraction": 0.48
+      },
+      {
+        "locus": "HERV_L07",
+        "population_frequency": 0.466,
+        "samples_with_junction": 21,
+        "observed_fraction": 0.42
+      },
+      {
+        "locus": "HERV_L08",
+        "population_frequency": 0.179,
+        "samples_with_junction": 9,
+        "observed_fraction": 0.18
+      },
+      {
+        "locus": "HERV_L09",
+        "population_frequency": 0.509,
+        "samples_with_junction": 24,
+        "observed_fraction": 0.48
+      }
+    ],
+    "recurrence_distribution": {
+      "n_bins": 45,
+      "private_bins": 23,
+      "private_fraction": 0.5111,
+      "max_samples_in_one_bin": 37,
+      "median": 1
+    },
+    "divergence": 0.1,
+    "clonal_fraction": 1.0,
+    "cohort_seed": 42,
+    "seconds": 42.4
+  }
+]

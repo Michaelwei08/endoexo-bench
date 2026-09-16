@@ -7,10 +7,10 @@ This replaces the motivating audit the project was founded on, which was dated
 2026-04-15, belonged to a different repository, and scoped the question to one
 lab's rubric rather than to the literature.
 
-**Verdict up front: four of the five things this project was positioned on are
-already published. The framing has to change from "nobody has benchmarked this"
-to "several groups have attacked this with orthogonal discriminators, and here is
-what the alignment-level rules actually do when measured against ground truth."**
+**Verdict up front, revised after the second pass at the end of this file: every
+IDEA in this project has prior art. What does not is the MEASUREMENT. The framing
+has to be "here is what these rules actually do, against ground truth, in one
+place" -- never "here is a new idea".**
 
 ## Claim matrix
 
@@ -41,16 +41,12 @@ on a resume entry and is now corrected.
 
 **Owed before any submission.**
 
-1. A targeted second pass on P6 to P9 specifically, rather than on the general
-   question. The right queries are about competitive alignment with decoys in
-   virus detection, and about what a discard-ambiguous policy costs, not about
-   endogenous versus exogenous retroviruses.
-2. Read Vy-PER (Sci Rep 2015, eliminating false positive detection of virus
-   integration events) in full. It is squarely in this territory and was not read
-   in this pass, only surfaced.
-3. Read the 2022 Frontiers assessment in full rather than through its repository
-   README. It reports tool false-discovery rates between 8% and 55%, which is a
-   direct comparator for anything quantitative said here.
+1. **DONE 2026-09-17.** A targeted second pass on P6 to P9 specifically. It moved
+   P7 to weakened, P9 to dead, and D to severely weakened.
+2. **DONE 2026-09-17.** Read Vy-PER in full. It does not pre-empt the three things
+   this project measures; see below.
+3. **DONE 2026-09-17.** Read the 2022 Frontiers assessment in full. It confirms P2
+   exactly and supplies the direct quantitative comparators.
 4. **DONE 2026-09-15 -- see the update at the end of this file.** Decide whether
    the intra-host diversity statistic of Hayward et al. belongs in the benchmark
    as an additional baseline. It was the one item that could change the
@@ -58,7 +54,7 @@ on a resume entry and is now corrected.
    different discriminator and it does not need the alignment panel to be
    complete. It was implemented, measured, and does not rescue the hard case.
 
-Items 1 to 3 remain outstanding and belong before any submission.
+All four are done. Two new items are owed; see the end of this file.
 
 ## Sources
 
@@ -79,3 +75,69 @@ chance. Its direction reverses against the literature because Hayward's question
 is about the coalescence age of reads that all come from one element, while this
 question is about whether a mixture is present. See F050 to F055 in
 CONTINUITY.md. The project's conclusion survives the challenge.
+
+
+## Second pass, 2026-09-17: the targeted one, aimed at P6 to P9 and at D
+
+Owed items 1 to 3 are now done. Vy-PER and the 2022 Frontiers assessment were
+read in full, and the P6-to-P9 queries were aimed at the mechanisms rather than
+at the general question. The verdicts move AGAINST the project again.
+
+| ID | Verdict after the second pass | What moved it |
+|---|---|---|
+| P6 | **STILL THE MOST DEFENSIBLE** | Related to the decoy-genome rationale below, but I found no source stating the QUANTITATIVE dichotomy -- that error is essentially all exact ties when the true source is in the panel and essentially none when it is not. |
+| P7 | **WEAKENED** | Quantifying what a filter costs against ground truth is standard practice in this literature: the 2024 BMC pathogen-detection paper does it with precision-recall curves and an LOD50 of 10.2 reads. And after B, this project's rule reduces to discarding MAPQ 0, which is universal. What is left is the specific numbers for this specific rule, not the act of measuring. |
+| P8 | **UNAFFECTED** | Nothing found. |
+| P9 | **DEAD** | This is the decoy-genome rationale, standard in human genomics since the 1000 Genomes hs37d5 decoy: "The decoy contains known true human genome sequence that is not in the reference genome and will suck up reads that would otherwise map with low quality in the reference." My catalogue-equals-assembly result is that idea applied to endogenous retroelements. |
+| D | **SEVERELY WEAKENED** | The HIV integration-site literature already uses cross-patient recurrence as an artefact heuristic, and states both halves of my argument: mispriming sites "are sometimes reported to be present at identical locations in samples from different patients", and "the possibility of independent integrations into the identical nucleotide position in the human genome is highly statistically unfavorable". What remains is that their recurrent class is PCR mispriming in linker-mediated PCR assays while mine is endogenous insertions in WGS, and that the measurement -- naive junction rule at specificity 0.00 against recurrence filtering at 0.96, with ground truth -- I did not find. |
+
+### Vy-PER, read in full
+
+Squarely in this territory and attacks it differently. It filters by short tandem
+repeat and homopolymer content, re-aligns candidates to the host genome with BLAT,
+and requires a minimum number of supporting chimeras. It does **not** discuss MAPQ
+filtering, does **not** identify endogenous retroviruses as a false-positive
+source, does **not** quantify the sensitivity cost of its filters against
+simulated ground truth, and does **not** use cross-individual recurrence. So it
+is a different attack on a neighbouring problem, and it does not pre-empt the
+three things this project measures.
+
+### The 2022 Frontiers assessment, read in full
+
+Confirms P2 exactly. Non-reference HERV-K insertions were simulated with DWGSIM
+after "we removed these proviruses from the hg19 reference using Bedtools masking
+followed by deletion" -- 15 LTR3A target loci plus 4 LTR3B specificity controls,
+at 150 and 100 bp and 32X / 10.5X / 7X. Tool sensitivity 0.20 to 0.80 and
+precision 0.56 to 0.92 at 32X and 150 bp, with a false discovery rate between 8
+and 55 percent across tools and datasets. Those are the direct comparators for
+anything quantitative here.
+
+It does **not** address exogenous retrovirus contamination, cross-mapping between
+exogenous viruses and HERVs, mapping quality or ambiguous read assignment, or
+cross-individual recurrence.
+
+## What the project's contribution actually is, after two passes
+
+Every IDEA in this project turns out to have prior art. The tie phenomenon, the
+decoy rationale, the resolution ceiling, the recurrence heuristic, the practice of
+quantifying a filter's cost -- each is published, mostly in a neighbouring
+subfield, and mostly not cited by the others.
+
+What is not published is the MEASUREMENT: these quantities, for this problem,
+against ground truth, in one place. That is a legitimate and modest contribution
+and it is the only one this project should claim. The writing should be framed as
+"here is what these rules actually do", never as "here is a new idea".
+
+Five claims have now been walked back across two passes. That is the check
+working rather than failing, but the cumulative lesson is worth stating plainly:
+in a problem this well-trodden, the prior is that any mechanism one notices has
+been noticed. The numbers are what is new.
+
+### Still owed
+
+- A third pass specifically on P6, which is now the load-bearing claim. The right
+  query is about the DICHOTOMY -- whether anyone has reported that mis-assignment
+  is all-ties or no-ties depending on reference completeness -- and not about ties
+  or decoys separately, both of which are known.
+- Read the 1000 Genomes / hs37d5 decoy documentation properly, to cite P9's
+  pre-emption precisely rather than from a secondary description.

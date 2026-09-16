@@ -335,7 +335,21 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   The naive rule is worse than at chance, it is USELESS: at the same threshold it has
   sensitivity 1.000, FPR 1.000 and specificity 0.00. It calls every sample positive,
   infected or not, because every sample carries endogenous junctions.
-- F064a 2026-09-16 [ASSUMPTION]: OPEN ITEM, do not quote the sensitivity without it.
+- F075 2026-09-17 [TOOL]: F064a IS RESOLVED, and the answer is clean: the gap is
+  100 percent integration-integration collision. Decomposing the non-private true
+  integrations at clonal fraction 1.00 over 25 infected samples gives 16 private,
+  9 collided with ANOTHER SAMPLE'S integration, 0 collided with an endogenous
+  locus, 0 spurious, 0 undetected. At clonal fraction 0.60 it is 16 / 6 / 0 / 0 / 3.
+  My earlier birthday estimate of 1.5 pairs was wrong because it ignored the
+  plus-or-minus-one-bin tolerance in the recovery check, which makes each
+  integration occupy THREE bins. Corrected: C(25,2) x 3/200 = 4.5 expected
+  colliding pairs, about 9 samples -- matching the observation exactly. The formula
+  in the code is fixed.
+  So the loss is ENTIRELY a simulation-scale artefact. A 3 Gb genome at this bin
+  size has about six million bins, giving 0.00015 expected colliding pairs. The
+  real sensitivity at full clonality is 25 of 25, and the observed 0.68 is fully
+  explained by a 100 kb backbone. The figure is now quotable WITH that correction.
+- F064a 2026-09-16 [SUPERSEDED by F075] OPEN ITEM, do not quote the sensitivity without it.
   At clonal fraction 1.00 all 25 true integrations are DETECTED but only 68 percent of
   infected samples reach threshold one, so about eight samples have their integration
   bin shared with something else. Coordinate collision between integrations explains
