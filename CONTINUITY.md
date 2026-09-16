@@ -220,6 +220,14 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   an ad-hoc check. Both are now scripts writing to results/:
   compare_with_bwa.py --out, and run_divergence_ablation.py. The claim "every
   number traces to a file" is now true rather than aspirational.
+- F078 2026-09-17 [TOOL]: P6's third pass is done and it survives, but as a
+  SEARCH-BASED ABSENCE CLAIM rather than a positive result -- the same label the
+  motivating audit used for its weakest claims. A query aimed at the dichotomy
+  itself, rather than at ties or decoys separately, returned only general
+  tie-breaking documentation and notes on MAPQ inconsistency across aligners.
+  Three searches is not a systematic review, and P6 is now the only claim the
+  project rests on, so: if one thing here turns out to have prior art after
+  publication, the prior says it is this one.
 - D020 ACTIVE 2026-09-17 [CODE]: A number may not enter the paper unless it comes
   from a file in results/ produced by a committed script. Not from a notebook, not
   from an ad-hoc check, not from a session transcript. F076 is why.

@@ -135,9 +135,14 @@ been noticed. The numbers are what is new.
 
 ### Still owed
 
-- A third pass specifically on P6, which is now the load-bearing claim. The right
-  query is about the DICHOTOMY -- whether anyone has reported that mis-assignment
-  is all-ties or no-ties depending on reference completeness -- and not about ties
-  or decoys separately, both of which are known.
+- **DONE 2026-09-17, and P6 survives -- but weakly.** A third pass aimed at the
+  DICHOTOMY itself, rather than at ties or decoys separately, returned nothing
+  that pre-empts it: only general documentation of tie-breaking and of MAPQ
+  inconsistency across aligners. P6 is therefore classified as a **search-based
+  absence claim**, using the same three-way labelling the motivating audit used:
+  not contradicted by anything found, but inherently weaker than a positive
+  result because it rests on what was not found. Three searches is not a
+  systematic review. If one claim in this project is going to turn out to have
+  prior art after publication, the prior says it is this one.
 - Read the 1000 Genomes / hs37d5 decoy documentation properly, to cite P9's
   pre-emption precisely rather than from a secondary description.
