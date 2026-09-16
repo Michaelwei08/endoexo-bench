@@ -51,14 +51,14 @@ on a resume entry and is now corrected.
 3. Read the 2022 Frontiers assessment in full rather than through its repository
    README. It reports tool false-discovery rates between 8% and 55%, which is a
    direct comparator for anything quantitative said here.
-4. Decide whether the intra-host diversity statistic of Hayward et al. belongs in
-   the benchmark as an additional baseline. It is a genuinely different
-   discriminator, it does not need the alignment panel to be complete, and if it
-   works in the regime where the alignment-level rules fail, it is a better
-   answer than anything measured here.
+4. **DONE 2026-09-15 -- see the update at the end of this file.** Decide whether
+   the intra-host diversity statistic of Hayward et al. belongs in the benchmark
+   as an additional baseline. It was the one item that could change the
+   project's conclusion rather than its wording, because it is a genuinely
+   different discriminator and it does not need the alignment panel to be
+   complete. It was implemented, measured, and does not rescue the hard case.
 
-Item 4 is the one that could change the project's conclusion rather than its
-wording, and it should be done before the write-up rather than after.
+Items 1 to 3 remain outstanding and belong before any submission.
 
 ## Sources
 
@@ -69,3 +69,13 @@ wording, and it should be done before the write-up rather than after.
 - MGmapper: Reference based mapping and taxonomy annotation of metagenomics sequence reads. https://pmc.ncbi.nlm.nih.gov/articles/PMC5415185/
 - Epigenetic motifs distinguishing endogenous from exogenous retroviral integrants. J Virol 2025. https://journals.asm.org/doi/10.1128/jvi.00775-25
 - Vy-PER: eliminating false positive detection of virus integration events in next generation sequencing data. Sci Rep 2015. https://www.nature.com/articles/srep11534 (surfaced, NOT yet read)
+
+## Update 2026-09-15: owed item 4 is done
+
+The intra-host diversity statistic was implemented and measured. It does NOT
+rescue the panel-incomplete regime: ROC AUC 0.619 to 0.774 there against a raw
+read count at 0.851 to 0.902, and at low load everything including it sits at
+chance. Its direction reverses against the literature because Hayward's question
+is about the coalescence age of reads that all come from one element, while this
+question is about whether a mixture is present. See F050 to F055 in
+CONTINUITY.md. The project's conclusion survives the challenge.

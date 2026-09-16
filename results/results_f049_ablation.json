@@ -1,0 +1,318 @@
+[
+  {
+    "divergence": 0.02,
+    "panel_mode": "poly_no_decoy",
+    "n_samples": 60,
+    "n_infected": 30,
+    "cohort_seed": 42,
+    "viral_load_range": [
+      0.565,
+      7.477
+    ],
+    "single_scores": {
+      "n_calls": {
+        "roc_auc": 0.9017,
+        "fpr_at_95_sens": 0.5333
+      },
+      "n_calls_unopposed": {
+        "roc_auc": 0.9017,
+        "fpr_at_95_sens": 0.5333
+      },
+      "breadth_1x": {
+        "roc_auc": 0.52,
+        "fpr_at_95_sens": 1.0
+      },
+      "max_bin_frac": {
+        "roc_auc": 0.5911,
+        "fpr_at_95_sens": 0.7333
+      },
+      "depth_cv": {
+        "roc_auc": 0.5989,
+        "fpr_at_95_sens": 0.9
+      },
+      "prop_variable_sites": {
+        "roc_auc": 0.6189,
+        "fpr_at_95_sens": 0.8
+      },
+      "mean_maf": {
+        "roc_auc": 0.61,
+        "fpr_at_95_sens": 0.8
+      },
+      "nucleotide_diversity": {
+        "roc_auc": 0.6222,
+        "fpr_at_95_sens": 0.7
+      }
+    },
+    "model": {
+      "logreg/all": {
+        "roc_auc": 0.87,
+        "fpr_at_95_sens": 0.8333
+      },
+      "gbm/all": {
+        "roc_auc": 0.8494,
+        "fpr_at_95_sens": 0.8333
+      },
+      "logreg/no_diversity": {
+        "roc_auc": 0.84,
+        "fpr_at_95_sens": 0.9
+      },
+      "gbm/no_diversity": {
+        "roc_auc": 0.7978,
+        "fpr_at_95_sens": 0.9333
+      }
+    },
+    "diversity_diagnostics": {
+      "prop_variable_sites": {
+        "spearman_vs_n_calls": -0.0583,
+        "spearman_vs_load_within_infected": 0.2205
+      },
+      "mean_maf": {
+        "spearman_vs_n_calls": -0.0368,
+        "spearman_vs_load_within_infected": 0.297
+      },
+      "nucleotide_diversity": {
+        "spearman_vs_n_calls": -0.0265,
+        "spearman_vs_load_within_infected": 0.2997
+      }
+    },
+    "n_splits": 5,
+    "seconds": 92.9
+  },
+  {
+    "divergence": 0.1,
+    "panel_mode": "poly_no_decoy",
+    "n_samples": 60,
+    "n_infected": 30,
+    "cohort_seed": 42,
+    "viral_load_range": [
+      0.565,
+      7.477
+    ],
+    "single_scores": {
+      "n_calls": {
+        "roc_auc": 0.8506,
+        "fpr_at_95_sens": 0.7667
+      },
+      "n_calls_unopposed": {
+        "roc_auc": 0.8506,
+        "fpr_at_95_sens": 0.7667
+      },
+      "breadth_1x": {
+        "roc_auc": 0.6967,
+        "fpr_at_95_sens": 0.7333
+      },
+      "max_bin_frac": {
+        "roc_auc": 0.63,
+        "fpr_at_95_sens": 0.7667
+      },
+      "depth_cv": {
+        "roc_auc": 0.6844,
+        "fpr_at_95_sens": 0.7
+      },
+      "prop_variable_sites": {
+        "roc_auc": 0.7522,
+        "fpr_at_95_sens": 0.8
+      },
+      "mean_maf": {
+        "roc_auc": 0.7689,
+        "fpr_at_95_sens": 0.9
+      },
+      "nucleotide_diversity": {
+        "roc_auc": 0.7744,
+        "fpr_at_95_sens": 0.9
+      }
+    },
+    "model": {
+      "logreg/all": {
+        "roc_auc": 0.9244,
+        "fpr_at_95_sens": 0.4333
+      },
+      "gbm/all": {
+        "roc_auc": 0.8161,
+        "fpr_at_95_sens": 0.9333
+      },
+      "logreg/no_diversity": {
+        "roc_auc": 0.8789,
+        "fpr_at_95_sens": 0.7
+      },
+      "gbm/no_diversity": {
+        "roc_auc": 0.7517,
+        "fpr_at_95_sens": 0.9
+      }
+    },
+    "diversity_diagnostics": {
+      "prop_variable_sites": {
+        "spearman_vs_n_calls": 0.1803,
+        "spearman_vs_load_within_infected": 0.5769
+      },
+      "mean_maf": {
+        "spearman_vs_n_calls": 0.6109,
+        "spearman_vs_load_within_infected": 0.6498
+      },
+      "nucleotide_diversity": {
+        "spearman_vs_n_calls": 0.4866,
+        "spearman_vs_load_within_infected": 0.705
+      }
+    },
+    "n_splits": 5,
+    "seconds": 81.9
+  },
+  {
+    "divergence": 0.02,
+    "panel_mode": "no_decoy",
+    "n_samples": 60,
+    "n_infected": 30,
+    "cohort_seed": 42,
+    "viral_load_range": [
+      0.565,
+      7.477
+    ],
+    "single_scores": {
+      "n_calls": {
+        "roc_auc": 0.7489,
+        "fpr_at_95_sens": 0.6667
+      },
+      "n_calls_unopposed": {
+        "roc_auc": 1.0,
+        "fpr_at_95_sens": 0.0
+      },
+      "breadth_1x": {
+        "roc_auc": 0.9133,
+        "fpr_at_95_sens": 0.4667
+      },
+      "max_bin_frac": {
+        "roc_auc": 0.66,
+        "fpr_at_95_sens": 0.8667
+      },
+      "depth_cv": {
+        "roc_auc": 0.7522,
+        "fpr_at_95_sens": 0.7667
+      },
+      "prop_variable_sites": {
+        "roc_auc": 0.8156,
+        "fpr_at_95_sens": 0.7667
+      },
+      "mean_maf": {
+        "roc_auc": 0.9511,
+        "fpr_at_95_sens": 0.4667
+      },
+      "nucleotide_diversity": {
+        "roc_auc": 0.9456,
+        "fpr_at_95_sens": 0.5
+      }
+    },
+    "model": {
+      "logreg/all": {
+        "roc_auc": 0.9956,
+        "fpr_at_95_sens": 0.0667
+      },
+      "gbm/all": {
+        "roc_auc": 1.0,
+        "fpr_at_95_sens": 0.0
+      },
+      "logreg/no_diversity": {
+        "roc_auc": 0.9978,
+        "fpr_at_95_sens": 0.0
+      },
+      "gbm/no_diversity": {
+        "roc_auc": 1.0,
+        "fpr_at_95_sens": 0.0
+      }
+    },
+    "diversity_diagnostics": {
+      "prop_variable_sites": {
+        "spearman_vs_n_calls": 0.3663,
+        "spearman_vs_load_within_infected": 0.4759
+      },
+      "mean_maf": {
+        "spearman_vs_n_calls": 0.5108,
+        "spearman_vs_load_within_infected": 0.6948
+      },
+      "nucleotide_diversity": {
+        "spearman_vs_n_calls": 0.5041,
+        "spearman_vs_load_within_infected": 0.673
+      }
+    },
+    "n_splits": 5,
+    "seconds": 134.5
+  },
+  {
+    "divergence": 0.1,
+    "panel_mode": "no_decoy",
+    "n_samples": 60,
+    "n_infected": 30,
+    "cohort_seed": 42,
+    "viral_load_range": [
+      0.565,
+      7.477
+    ],
+    "single_scores": {
+      "n_calls": {
+        "roc_auc": 0.87,
+        "fpr_at_95_sens": 0.8
+      },
+      "n_calls_unopposed": {
+        "roc_auc": 1.0,
+        "fpr_at_95_sens": 0.0
+      },
+      "breadth_1x": {
+        "roc_auc": 0.99,
+        "fpr_at_95_sens": 0.0667
+      },
+      "max_bin_frac": {
+        "roc_auc": 0.8456,
+        "fpr_at_95_sens": 0.8
+      },
+      "depth_cv": {
+        "roc_auc": 0.9111,
+        "fpr_at_95_sens": 0.4667
+      },
+      "prop_variable_sites": {
+        "roc_auc": 0.5867,
+        "fpr_at_95_sens": 0.8667
+      },
+      "mean_maf": {
+        "roc_auc": 0.7767,
+        "fpr_at_95_sens": 0.8333
+      },
+      "nucleotide_diversity": {
+        "roc_auc": 0.7567,
+        "fpr_at_95_sens": 0.8333
+      }
+    },
+    "model": {
+      "logreg/all": {
+        "roc_auc": 1.0,
+        "fpr_at_95_sens": 0.0
+      },
+      "gbm/all": {
+        "roc_auc": 1.0,
+        "fpr_at_95_sens": 0.0
+      },
+      "logreg/no_diversity": {
+        "roc_auc": 1.0,
+        "fpr_at_95_sens": 0.0
+      },
+      "gbm/no_diversity": {
+        "roc_auc": 1.0,
+        "fpr_at_95_sens": 0.0
+      }
+    },
+    "diversity_diagnostics": {
+      "prop_variable_sites": {
+        "spearman_vs_n_calls": 0.1798,
+        "spearman_vs_load_within_infected": 0.2018
+      },
+      "mean_maf": {
+        "spearman_vs_n_calls": 0.5629,
+        "spearman_vs_load_within_infected": 0.6
+      },
+      "nucleotide_diversity": {
+        "spearman_vs_n_calls": 0.5306,
+        "spearman_vs_load_within_infected": 0.5577
+      }
+    },
+    "n_splits": 5,
+    "seconds": 180.0
+  }
+]

@@ -28,8 +28,9 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from endoexo import simulate
-from endoexo.align import (MATCH, MISMATCH, Hit, _best_local, _tie_structure,
-                           revcomp)
+from endoexo.align import (MATCH, MISMATCH, Hit, PanelIndex, _best_local,
+                           _tie_structure, align_read, aligned_bases, revcomp)
+from endoexo.cohort import build_cohort, build_sample, locate
 from endoexo.evaluate import fpr_at_sensitivity
 from compare_with_bwa import parse_sam, softclip_len
 from run_sample_level import coverage_profile
@@ -174,17 +175,30 @@ class TestAligner(unittest.TestCase):
         for trial in range(25):
             read = simulate.mutate(ref[50:200].copy(), 0.1,
                                    np.random.default_rng(trial))
-            score, _, alen = _best_local(read, ref, 50)
+            score, _, alen, _ = _best_local(read, ref, 50)
             self.assertEqual(score, self._brute_force(read, ref, 50))
             self.assertLessEqual(alen, len(read))
 
     def test_perfect_match_scores_read_length(self):
         rng = np.random.default_rng(10)
         ref = rng.integers(0, 4, 200, dtype=np.uint8)
-        score, start, alen = _best_local(ref[20:120].copy(), ref, 20)
+        score, start, alen, read_start = _best_local(ref[20:120].copy(), ref, 20)
         self.assertEqual(score, 100)
         self.assertEqual(start, 20)
         self.assertEqual(alen, 100)
+        self.assertEqual(read_start, 0)
+
+    def test_read_start_indexes_the_aligned_segment(self):
+        """A read whose first 30 bases are junk must report read_start 30."""
+        rng = np.random.default_rng(11)
+        ref = rng.integers(0, 4, 400, dtype=np.uint8)
+        read = np.concatenate([rng.integers(0, 4, 30, dtype=np.uint8),
+                               ref[100:220].copy()])
+        # diagonal such that read position 30 maps to reference position 100
+        score, ref_start, alen, read_start = _best_local(read, ref, 70)
+        self.assertEqual(alen, 120)
+        self.assertEqual(ref_start, 100)
+        self.assertEqual(read_start, 30)
 
     def test_tie_structure_counts_categories(self):
         hits = [Hit("EXO_REF", "EXO", 100, 0, 100),
@@ -203,6 +217,135 @@ class TestAligner(unittest.TestCase):
         hits = [Hit("HOST", "HOST", 100, 0, 100),
                 Hit("HOST_NOLOCI", "HOST", 100, 0, 100)]
         self.assertEqual(_tie_structure(hits), (2, 1))
+
+
+class TestAlignedBases(unittest.TestCase):
+    """aligned_bases is correctness-critical: the diversity statistic is computed
+    from the pileup it produces, so an off-by-one here silently corrupts every
+    allele frequency."""
+
+    def _index(self, ref):
+        panel = simulate.Panel()
+        panel.add("EXO_REF", ref, "EXO")
+        return PanelIndex(panel, k=19)
+
+    def test_forward_read_recovers_its_own_bases(self):
+        rng = np.random.default_rng(20)
+        ref = rng.integers(0, 4, 3000, dtype=np.uint8)
+        read = ref[500:650].copy()
+        hit = align_read(read, self._index(ref))[0]
+        start, bases = aligned_bases(read, hit)
+        self.assertEqual(start, 500)
+        np.testing.assert_array_equal(bases, ref[500:650])
+
+    def test_reverse_read_recovers_reference_orientation(self):
+        rng = np.random.default_rng(21)
+        ref = rng.integers(0, 4, 3000, dtype=np.uint8)
+        read = revcomp(ref[800:950].copy())
+        hit = align_read(read, self._index(ref))[0]
+        self.assertTrue(hit.reverse)
+        start, bases = aligned_bases(read, hit)
+        self.assertEqual(start, 800)
+        np.testing.assert_array_equal(bases, ref[800:950])
+
+    def test_mismatches_are_preserved_not_corrected(self):
+        """The pileup must see the READ's base, including where it disagrees."""
+        rng = np.random.default_rng(22)
+        ref = rng.integers(0, 4, 3000, dtype=np.uint8)
+        read = ref[1000:1150].copy()
+        read[40] = (read[40] + 1) % 4
+        read[90] = (read[90] + 2) % 4
+        hit = align_read(read, self._index(ref))[0]
+        start, bases = aligned_bases(read, hit)
+        self.assertEqual(start, 1000)
+        self.assertEqual(int(bases[40]), int(read[40]))
+        self.assertNotEqual(int(bases[40]), int(ref[1040]))
+        self.assertEqual(int(bases[90]), int(read[90]))
+
+    def test_bases_length_matches_aligned_len(self):
+        rng = np.random.default_rng(23)
+        ref = rng.integers(0, 4, 3000, dtype=np.uint8)
+        read = np.concatenate([rng.integers(0, 4, 25, dtype=np.uint8),
+                               ref[1500:1625].copy()])
+        hit = align_read(read, self._index(ref))[0]
+        _start, bases = aligned_bases(read, hit)
+        self.assertEqual(len(bases), hit.aligned_len)
+
+
+class TestCohortGenomes(unittest.TestCase):
+    """The junction-recurrence experiment rests on one modelling invariant: the
+    host backbone must be COHORT-level, so a host coordinate means the same thing
+    in every sample. Getting that wrong would not crash anything -- it would
+    silently make recurrence meaningless, which is why it is pinned here."""
+
+    def _spec(self, **kw):
+        return build_cohort(0.10, n_loci=4, backbone_bp=40_000, seed=42, **kw)
+
+    def test_backbone_is_shared_across_the_cohort(self):
+        a, b = self._spec(), self._spec()
+        np.testing.assert_array_equal(a.backbone, b.backbone)
+        for name in a.locus_seq:
+            np.testing.assert_array_equal(a.locus_seq[name], b.locus_seq[name])
+            self.assertEqual(a.locus_coord[name], b.locus_coord[name])
+
+    def test_panel_host_reference_carries_no_insertions(self):
+        """An insertionally polymorphic locus is absent from the assembly. If the
+        panel's host reference contained the elements, the whole poly case would
+        silently become the reference-insertion case."""
+        spec = self._spec()
+        panel = spec.panel()
+        self.assertEqual(len(panel.refs["HOST"]), len(spec.backbone))
+        np.testing.assert_array_equal(panel.refs["HOST"], spec.backbone)
+
+    def test_presence_is_polymorphic_across_samples(self):
+        spec = self._spec()
+        carried = [set(build_sample(spec, infected=False, sample_seed=s)[4])
+                   for s in range(1, 40)]
+        self.assertGreater(len({frozenset(c) for c in carried}), 1,
+                           "samples must differ in which loci they carry")
+
+    def test_infected_sample_gets_a_private_coordinate(self):
+        spec = self._spec()
+        coords = set()
+        for s in range(1, 25):
+            out = build_sample(spec, infected=True, sample_seed=s)
+            coords.add(out[5])
+            self.assertIsNotNone(out[5])
+        self.assertGreater(len(coords), 20, "integration coordinates must vary")
+
+    def test_uninfected_sample_has_no_provirus(self):
+        spec = self._spec()
+        out = build_sample(spec, infected=False, sample_seed=3)
+        self.assertIsNone(out[5])
+        np.testing.assert_array_equal(out[0], out[1])   # the two templates agree
+
+    def test_locate_maps_backbone_positions_to_reference_coordinates(self):
+        spec = self._spec()
+        with_prov, without, seg_with, _sw, carried, exo_coord, _d = build_sample(
+            spec, infected=True, sample_seed=5)
+        # the base immediately before the first insertion must report its own
+        # backbone coordinate
+        first = min([spec.locus_coord[n] for n in carried] + [exo_coord])
+        src, coord = locate(seg_with, first - 1)
+        self.assertEqual(src, "BACKBONE")
+        self.assertEqual(coord, first - 1)
+
+    def test_locate_identifies_the_provirus_interior(self):
+        spec = self._spec()
+        _wp, _wo, seg_with, _sw, carried, exo_coord, _d = build_sample(
+            spec, infected=True, sample_seed=6)
+        offset = sum(len(spec.locus_seq[n]) for n in carried
+                     if spec.locus_coord[n] < exo_coord)
+        src, _coord = locate(seg_with, exo_coord + offset + 100)
+        self.assertEqual(src, "EXO")
+
+    def test_genome_length_is_backbone_plus_insertions(self):
+        spec = self._spec()
+        wp, wo, _sw, _so, carried, _c, _d = build_sample(
+            spec, infected=True, sample_seed=7)
+        inserted = sum(len(spec.locus_seq[n]) for n in carried)
+        self.assertEqual(len(wo), len(spec.backbone) + inserted)
+        self.assertEqual(len(wp), len(wo) + len(spec.exo_ref))
 
 
 class TestMetrics(unittest.TestCase):

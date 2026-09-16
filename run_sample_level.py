@@ -26,13 +26,28 @@ WHAT IS COMPARED
     n_calls              the count a pipeline reports today
     n_calls_unopposed    the same count after the three-bin rule
     breadth_1x           fraction of the exogenous reference covered at all
-    neg_max_bin_frac     uniformity: how much depth sits in the single worst bin
-    neg_depth_cv         uniformity: coefficient of variation across bins
+    max_bin_frac         uniformity: how much depth sits in the single worst bin
+    depth_cv             uniformity: coefficient of variation across bins
+    prop_variable_sites  intra-host variation over the pileup; see below
+    mean_maf             the same, as a mean minor allele fraction
+    nucleotide_diversity the same, as per-site pi
     learned model        logistic regression and a GBM over all of the above
 
   Viral load VARIES across infected samples, drawn log-uniformly, because the
   discriminating power of a read count collapses near the detection limit and
   that is the regime the question matters in.
+
+THE PILEUP STATISTICS ARE HERE FOR A SPECIFIC REASON
+  Every rule measured in this repository so far is a COMPETITION test, and F024
+  showed that a competition test is worthless when the read's true source is
+  absent from the panel. A pileup statistic is computed from the reads that
+  mapped, full stop, so it needs no competitor and could work in exactly the
+  regime where the alignment-level rules fail. That is why the prior-art check
+  flagged it (F049) as the outstanding item that could change the project's
+  conclusion rather than its wording.
+
+  Its direction had to be reversed against the literature, and the reversal is
+  the finding. See the comment on SINGLE_SCORES.
 """
 from __future__ import annotations
 
@@ -44,7 +59,7 @@ import numpy as np
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 
-from endoexo.align import PanelIndex, features_for_pair
+from endoexo.align import PanelIndex, features_for_pair, revcomp
 from endoexo.evaluate import _make_model, fpr_at_sensitivity
 from endoexo.simulate import simulate_reads, simulate_world
 from run_slice import PANEL_MODES, restrict_panel
@@ -54,7 +69,11 @@ SAMPLE_FEATURES = [
     "breadth_1x", "breadth_5x", "depth_cv", "max_bin_frac",
     "mean_AS", "mean_gap", "mean_softclip", "mean_aligned_len",
     "frac_in_ltr", "frac_mate_same_ref", "frac_mate_exo",
+    # Hayward's discriminator. See diversity_stats.
+    "prop_variable_sites", "mean_maf", "nucleotide_diversity",
 ]
+
+DIVERSITY_FEATURES = ("prop_variable_sites", "mean_maf", "nucleotide_diversity")
 
 # Single statistics evaluated on their own, and the sign that makes "higher is
 # more likely infected" true for each.
@@ -64,6 +83,21 @@ SINGLE_SCORES = {
     "breadth_1x": +1,
     "max_bin_frac": -1,        # concentrated depth means cross-mapping
     "depth_cv": -1,
+    # SIGN REVERSED AGAINST THE LITERATURE, 2026-09-15, and the reversal is the
+    # finding rather than a correction. Hayward's direction -- endogenous reads
+    # high variation, exogenous low -- was measured with the literature's sign
+    # first and gave ROC AUC 0.111, i.e. 0.889 reversed. The direction does not
+    # transfer because the QUESTION is different. Hayward ask whether a set of
+    # reads that all come from one candidate element is endogenous or exogenous,
+    # so coalescence age is what the pileup reflects. Here the pileup is a
+    # MIXTURE: an infected sample contributes both a viral strain, which differs
+    # systematically from the reference at its own sites, and endogenous
+    # cross-mappings, which differ at theirs. Two populations carry more variation
+    # than one. So in this task the statistic detects a mixture, not an age, and
+    # higher variation means infected.
+    "prop_variable_sites": +1,
+    "mean_maf": +1,
+    "nucleotide_diversity": +1,
 }
 
 
@@ -87,6 +121,56 @@ def coverage_profile(starts: np.ndarray, lengths: np.ndarray, ref_len: int,
     }
 
 
+def diversity_stats(counts: np.ndarray, min_depth: int = 5,
+                    maf_threshold: float = 0.05) -> dict:
+    """Intra-host genetic variation over the exogenous-reference pileup.
+
+    This is Hayward et al.'s discriminator, and the reason it is worth testing
+    here is that it needs NO COMPETITOR IN THE PANEL. Every rule this repository
+    has measured so far is a competition test, and F024 showed those are
+    worthless when the read's true source is absent from the panel. A pileup
+    statistic is computed from the reads that mapped, full stop, so it is the one
+    published discriminator that could work in exactly the regime where the
+    alignment-level rules fail.
+
+    The direction: an endogenous family is a mixture of loci that diverged from
+    one another over millions of years, so at a site where one locus differs the
+    pileup shows a minor allele near 1/k for k contributing loci. An exogenous
+    infection is one recently coalesced quasispecies, so its systematic
+    differences from the reference are FIXED rather than variable, and the only
+    residual variation is replication error and sequencing error. Endogenous
+    therefore reads as high variation and exogenous as low.
+
+    `counts` is (reference length, 4) of observed base counts. Sites below
+    `min_depth` are excluded rather than imputed: a site seen twice carries no
+    usable allele frequency.
+    """
+    depth = counts.sum(axis=1)
+    keep = depth >= min_depth
+    n_sites = int(keep.sum())
+    if n_sites == 0:
+        return {"prop_variable_sites": 0.0, "mean_maf": 0.0,
+                "nucleotide_diversity": 0.0, "n_pileup_sites": 0}
+
+    c = counts[keep].astype(float)
+    n = depth[keep].astype(float)
+    p = c / n[:, None]
+    minor = 1.0 - p.max(axis=1)
+
+    # Unbiased nucleotide diversity per site: n/(n-1) * (1 - sum p_i^2). The
+    # correction matters here because depths are small by construction.
+    homozygosity = (p ** 2).sum(axis=1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        pi_site = np.where(n > 1, (n / (n - 1.0)) * (1.0 - homozygosity), 0.0)
+
+    return {
+        "prop_variable_sites": float((minor >= maf_threshold).mean()),
+        "mean_maf": float(minor.mean()),
+        "nucleotide_diversity": float(pi_site.mean()),
+        "n_pileup_sites": n_sites,
+    }
+
+
 def one_sample(divergence: float, panel_mode: str, cohort_seed: int,
                sample_index: int, exo_depth: float, host_depth: float,
                n_herv_loci: int, host_filler_bp: int, read_len: int,
@@ -105,10 +189,22 @@ def one_sample(divergence: float, panel_mode: str, cohort_seed: int,
 
     cols = {k: [] for k in ("AS", "gap", "softclip", "aligned_len", "in_ltr",
                             "mate_same_ref", "mate_exo", "tied", "start")}
+    pileup = np.zeros((ref_len, 4), dtype=np.int32)
     for t in reads:
         f = features_for_pair(t.read, t.mate, index, read_len)
         if f is None or f.best_cat != "EXO":
             continue
+        # Accumulate the pileup on the exogenous reference. The bases are
+        # recovered from the stored strand and read offset, so nothing is
+        # re-aligned; ungapped alignment makes the reference-to-base mapping one
+        # to one, so no CIGAR walk is needed.
+        seq = revcomp(t.read) if f.best_reverse else t.read
+        bases = seq[f.best_read_start:f.best_read_start + f.aligned_len]
+        if len(bases):
+            lo = f.best_ref_start
+            idx = np.arange(lo, lo + len(bases))
+            inside = (idx >= 0) & (idx < ref_len)
+            np.add.at(pileup, (idx[inside], bases[inside].astype(np.int64)), 1)
         cols["AS"].append(f.AS)
         cols["gap"].append(f.as_minus_xs)
         cols["softclip"].append(f.softclip_len)
@@ -119,6 +215,7 @@ def one_sample(divergence: float, panel_mode: str, cohort_seed: int,
         cols["tied"].append(int(f.n_tied_top_categories > 1))
         cols["start"].append(f.best_ref_start)
 
+    div = diversity_stats(pileup)
     n = len(cols["AS"])
     if n == 0:
         # A sample with no calls at all is a legitimate observation, not a
@@ -142,6 +239,7 @@ def one_sample(divergence: float, panel_mode: str, cohort_seed: int,
         "frac_mate_same_ref": float(np.mean(cols["mate_same_ref"])),
         "frac_mate_exo": float(np.mean(cols["mate_exo"])),
         **prof,
+        **{k: v for k, v in div.items() if k in SAMPLE_FEATURES},
     }
 
 
@@ -184,6 +282,20 @@ def run_cohort(divergence: float, panel_mode: str, *, n_samples: int = 40,
             "fpr_at_95_sens": round(float(fpr_at_sensitivity(y, s, 0.95)), 4),
         }
 
+    # Is the diversity statistic independent signal, or just a read-count proxy?
+    # If it correlates with n_calls as strongly as with the label, it is adding
+    # nothing that counting does not already give.
+    from scipy.stats import spearmanr
+    out["diversity_diagnostics"] = {}
+    for name in ("prop_variable_sites", "mean_maf", "nucleotide_diversity"):
+        v = X[:, col[name]]
+        rho_calls = spearmanr(v, X[:, col["n_calls"]]).statistic
+        rho_load = spearmanr(v[y == 1], loads[y == 1]).statistic if (y == 1).sum() > 2 else float("nan")
+        out["diversity_diagnostics"][name] = {
+            "spearman_vs_n_calls": round(float(rho_calls), 4),
+            "spearman_vs_load_within_infected": round(float(rho_load), 4),
+        }
+
     # Cross-validated over SAMPLES. Each sample carries its own redrawn loci, so
     # there is no within-sample unit to leak across.
     n_splits = int(min(5, np.bincount(y).min()))
@@ -192,16 +304,25 @@ def run_cohort(divergence: float, panel_mode: str, *, n_samples: int = 40,
         out["model"] = {"note": "too few samples per class to cross-validate"}
         out["seconds"] = round(time.time() - t0, 1)
         return out
-    for model in ("logreg", "gbm"):
-        oof = np.full(n_samples, np.nan)
-        for tr, te in StratifiedKFold(n_splits, shuffle=True, random_state=0).split(X, y):
-            clf = _make_model(model, 0)
-            clf.fit(X[tr], y[tr])
-            oof[te] = clf.predict_proba(X[te])[:, 1]
-        out["model"][model] = {
-            "roc_auc": round(float(roc_auc_score(y, oof)), 4),
-            "fpr_at_95_sens": round(float(fpr_at_sensitivity(y, oof, 0.95)), 4),
-        }
+    # Ablate the pileup statistics, so any model improvement they bring is
+    # ATTRIBUTABLE. The earlier comparison against a pre-F028 run could not
+    # separate the new features from the rate-normalisation fix.
+    featsets = {
+        "all": list(range(len(SAMPLE_FEATURES))),
+        "no_diversity": [i for i, c in enumerate(SAMPLE_FEATURES)
+                         if c not in DIVERSITY_FEATURES],
+    }
+    for featset, cols in featsets.items():
+        for model in ("logreg", "gbm"):
+            oof = np.full(n_samples, np.nan)
+            for tr, te in StratifiedKFold(n_splits, shuffle=True, random_state=0).split(X, y):
+                clf = _make_model(model, 0)
+                clf.fit(X[np.ix_(tr, cols)], y[tr])
+                oof[te] = clf.predict_proba(X[np.ix_(te, cols)])[:, 1]
+            out["model"][f"{model}/{featset}"] = {
+                "roc_auc": round(float(roc_auc_score(y, oof)), 4),
+                "fpr_at_95_sens": round(float(fpr_at_sensitivity(y, oof, 0.95)), 4),
+            }
     out["seconds"] = round(time.time() - t0, 1)
     return out
 

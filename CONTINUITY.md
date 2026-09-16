@@ -197,6 +197,145 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   purpose: every test corresponds to an invariant a finding depends on or to a
   defect that actually happened here.
 
+### D: cross-individual junction recurrence (2026-09-16)
+
+- D016 ACTIVE 2026-09-16 [CODE]: The cohort genome model lives in endoexo/cohort.py and
+  is separate from simulate.py on purpose, because three of its premises are the
+  opposite of that module's. The host backbone is COHORT-level, drawn once, because it
+  is the reference genome and a host coordinate is otherwise not comparable across
+  samples -- that was the one modelling error that would have silently reduced this
+  whole experiment to noise. Endogenous loci are presence-polymorphic at FIXED
+  coordinates with a population frequency each, where simulate.py gave every sample
+  every locus. And the exogenous provirus is INTEGRATED at a private coordinate in a
+  clonal fraction of cells, modelled by sampling that fraction of reads from a
+  template carrying it and the rest from one that does not.
+- D017 ACTIVE 2026-09-16 [CODE]: Recurrence is counted LEAVE-ONE-OUT. Private means no
+  OTHER sample carries a junction in that bin. Counting the sample itself would make
+  every bin it holds non-private by construction, which is the same class of error as
+  a read-level split and is avoided the same way.
+- F056 2026-09-16 [TOOL]: The diversity features earn their place ONLY where the panel
+  is incomplete, and the clean attribution is much smaller than it first looked.
+  Ablating them from the sample-level model, same seed and same code:
+    panel incomplete, divergence 0.02: logreg 0.870 vs 0.840 (+0.030), GBM +0.052
+    panel incomplete, divergence 0.10: logreg 0.924 vs 0.879 (+0.045), GBM +0.064,
+      and FPR at 95 percent sensitivity 0.433 vs 0.700
+    panel complete: +0.000 and -0.002. Nothing, as expected, because the
+      unopposed-call count already reaches 1.000 there.
+  The earlier apparent jump from 0.767 to 0.924 was MOSTLY the rate normalisation of
+  F028, not the new features. Flagging that confound was right and it was large.
+- F057 2026-09-16 [TOOL]: The prescription refines, and the two halves point opposite
+  ways. Where the panel is complete, use the single column: F031 showed the model
+  loses to it. Where the panel is incomplete, use the model: no single statistic
+  works there but a combination does, and the diversity features are a necessary part
+  of the combination. FPR at 95 percent sensitivity 0.433 is the best figure anything
+  has reached in that cell, against 0.767 for the raw count.
+- F058 2026-09-16 [TOOL]: THE NAIVE JUNCTION RULE IS AT CHANCE, confirmed at 50
+  samples across four clonal fractions: ROC AUC 0.507, 0.522, 0.582, 0.594, with
+  infected and uninfected junction-bin counts of 7.12 versus 6.96 and 7.96 versus
+  6.96. Endogenous insertions produce host-virus junctions at the same rate as
+  exogenous integrations, so "this sample has a junction" carries no information at
+  all. Junction evidence is only worth something once it is sorted by recurrence.
+- F059 2026-09-16 [TOOL]: Recurrence filtering gives near-perfect specificity and it
+  is CONSTANT in clonal fraction. The mean private-bin count among uninfected samples
+  is 0.04 at every clonal fraction tested -- one sample in twenty-five.
+- F060 2026-09-16 [TOOL]: Sensitivity is clonal-fraction limited, which is the honest
+  operating characteristic. Mean private bins among infected samples: 0.04 / 0.36 /
+  0.72 / 0.88 at clonal fraction 0.10 / 0.30 / 0.60 / 1.00, and the true integration
+  coordinate is recovered in 1 / 9 / 22 / 25 of 25 infected samples. Junction-spanning
+  fragments are intrinsically rare -- only those straddling a boundary, about 8
+  percent of the fragments overlapping an 8.5 kb insertion -- so this is a depth and
+  clonality constraint rather than a discrimination failure.
+- F061 2026-09-16 [TOOL]: The cohort machinery is validated independently: endogenous
+  loci recur at their population frequency, all ten within 0.08 of truth (0.37 to
+  0.44, 0.73 to 0.70, 0.52 to 0.52, 0.72 to 0.66, 0.65 to 0.74, 0.54 to 0.56, 0.58 to
+  0.50, 0.47 to 0.42, 0.18 to 0.18, 0.51 to 0.48). The detector recovers each locus's
+  frequency from junction evidence alone, which is a check nothing else in this
+  project has an analogue for.
+- F062 2026-09-16 [CODE]: A METRIC-SELECTION ERROR I made and caught. FPR at 95
+  percent sensitivity is meaningless for this rule and reported 1.000 across the
+  board, because the score is a small integer count -- mostly 0 or 1 -- so demanding
+  95 percent sensitivity forces the threshold to include everything. This
+  discriminator is high specificity and limited sensitivity; the operating point that
+  means anything is a threshold of one. Both are now reported, the degenerate one
+  under a name that says so.
+- F063 2026-09-16 [TOOL]: Exact operating point, threshold of one private bin.
+  Specificity is 0.96 and CONSTANT at every clonal fraction -- exactly one uninfected
+  sample in twenty-five. Sensitivity is 0.040 / 0.360 / 0.600 / 0.680 at clonal
+  fraction 0.10 / 0.30 / 0.60 / 1.00.
+  The naive rule is worse than at chance, it is USELESS: at the same threshold it has
+  sensitivity 1.000, FPR 1.000 and specificity 0.00. It calls every sample positive,
+  infected or not, because every sample carries endogenous junctions.
+- F064a 2026-09-16 [ASSUMPTION]: OPEN ITEM, do not quote the sensitivity without it.
+  At clonal fraction 1.00 all 25 true integrations are DETECTED but only 68 percent of
+  infected samples reach threshold one, so about eight samples have their integration
+  bin shared with something else. Coordinate collision between integrations explains
+  about three of them -- a 100 kb backbone at 500 bp bins gives 200 bins and 25
+  integrations collide at a birthday rate of 1.5 pairs -- and the remaining five are
+  UNEXPLAINED. Candidates are collision with an endogenous junction bin despite the
+  3 kb avoidance zone, and spurious junction calls recurring across samples. This
+  needs a diagnostic that decomposes the non-private integrations by what they collide
+  with, before the sensitivity figure means anything.
+  Whatever the decomposition, the collision component is a simulation-scale artefact:
+  a real 3 Gb genome has about six million bins at this resolution, where 25
+  integrations essentially never collide.
+- F065 2026-09-16 [TOOL]: A refinement the data points at. Mean private bins among
+  infected samples is 0.88 while only 68 percent reach one, so some samples carry two
+  or more. That is expected and useful: a provirus has TWO boundaries, 5-prime and
+  3-prime, about 8.5 kb apart, so an integration should produce a PAIR of private
+  junctions at a known separation. A rule that requires the pair, rather than one
+  private bin, would be sharper on both axes and is the obvious next version.
+- F064 2026-09-16 [TOOL]: D DELIVERS WHAT F049 COULD NOT. The panel's host reference
+  carries no insertions by construction, so this is the regime where F024 found the
+  three-bin rule to be a complete no-op and F050 found no per-sample statistic beats
+  counting reads. Recurrence works there -- and it works because it does not
+  discriminate sequence at all. It counts positions. The tie and unopposed-win
+  dichotomy is sidestepped rather than solved.
+
+### F049 resolved: the diversity statistic does NOT rescue the polymorphic case
+
+- F050 2026-09-15 [TOOL]: F049 REJECTED, and the project's conclusion survives the
+  challenge. Hayward's intra-host variation statistic was the one published
+  discriminator that needed no competitor in the panel, so it was the candidate to
+  work where every competition test fails. It does not beat a raw read count there.
+  On poly_no_decoy, 60 samples, load 0.56 to 7.48x:
+    divergence 0.02: prop_variable_sites ROC AUC 0.619, mean_maf 0.610,
+      nucleotide diversity 0.622 -- against n_calls at 0.902.
+    divergence 0.10: 0.752 / 0.769 / 0.774 -- against n_calls at 0.851.
+  So the prescription stands: this remains a panel-completeness problem and not
+  something a cleverer per-sample statistic fixes.
+- F051 2026-09-15 [TOOL]: THE DIRECTION REVERSES, and the reversal is a finding
+  about task identity rather than a correction. With the literature's sign the ROC
+  AUC was 0.111, i.e. 0.889 reversed. Hayward ask whether a set of reads that ALL
+  come from one candidate element is endogenous or exogenous, so what their pileup
+  reflects is coalescence age. Here the pileup is a MIXTURE -- an infected sample
+  contributes a viral strain differing systematically from the reference at its own
+  sites plus endogenous cross-mappings differing at theirs -- and two populations
+  carry more variation than one. In this task the statistic detects a mixture, not
+  an age. Their discriminator does not transfer to this question, which is a
+  different thing from it being wrong.
+- F052 2026-09-15 [TOOL]: The 12-sample smoke result did not survive. It gave
+  reversed AUC 0.889 on the decisive cell; at 60 samples the same cell gives 0.752.
+  Recorded because it was briefly tempting to build on it, and because it is the
+  second time in this project that a small-n result pointed the wrong way.
+- F053 2026-09-15 [TOOL]: It is substantially a read-count and load proxy, which
+  caps its independent value. Spearman against viral load within infected samples
+  is +0.48 to +0.70 in most cells, and against n_calls +0.36 to +0.61. The ONE cell
+  where it is nearly orthogonal to counting -- poly_no_decoy at divergence 0.02,
+  Spearman against n_calls -0.06, -0.04, -0.03 -- is also the cell where it is
+  weakest, at 0.619. Where it is orthogonal it is weak; where it is strong it is
+  redundant.
+- F054 2026-09-15 [TOOL]: The hardest corner stays hard, now against one more
+  method. On poly_no_decoy at load 0.11 to 0.48x, EVERYTHING is at chance: n_calls
+  0.641, prop_variable_sites 0.488, mean_maf 0.542, nucleotide diversity 0.521,
+  breadth 0.529, logreg 0.547, GBM 0.628 -- against a null standard error of 0.075
+  at 30 versus 30. Panel incomplete plus low load is unsolved by every statistic
+  tested at every granularity.
+- F055 2026-09-15 [TOOL]: Where the diversity statistics ARE strong they still lose
+  to the three-bin count. On no_decoy and poly_catalogue at divergence 0.02, mean_maf
+  reaches 0.951 and nucleotide diversity 0.946 -- against the unopposed-call count at
+  1.000 with FPR 0.000. A pileup statistic is never the best available answer in any
+  cell tested.
+
 ### C: fresh adversarial prior-art check (2026-09-15) -- see PRIOR_ART.md
 
 - F045 2026-09-15 [TOOL]: FOUR OF FIVE POSITIONING CLAIMS ARE DEAD. The question is

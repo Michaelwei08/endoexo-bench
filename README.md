@@ -133,10 +133,13 @@ endoexo/evaluate.py   production-rule baselines, learned models, CV schemes
 run_slice.py          one divergence x panel point, READ level, end to end
 run_sample_level.py   the SAMPLE-level detection task over a simulated cohort
 run_leakage_probe.py  isolates the read-level-CV inflation and tests its mechanism
+endoexo/cohort.py     a COHORT of genomes sharing one host backbone
+run_junction_recurrence.py
+                      cross-individual junction recurrence: the cohort-level rule
 export_for_bwa.py     writes panel.fa, paired FASTQ and a separate truth.tsv
 run_bwa.sh            aligns the exported reads with real BWA-MEM (run in WSL)
 compare_with_bwa.py   reproduces the tie typology from the SAM, for comparison
-tests/                33 tests over the invariants the findings rest on
+tests/                46 tests over the invariants the findings rest on
 results/              committed outputs; every README number traces to one
 PRIOR_ART.md          adversarial claim matrix. Read it before citing anything.
 ```
@@ -147,6 +150,8 @@ python run_slice.py        --divergence 0.02 0.05 0.10 0.20 \
                           --seed 42 142 242 --out results/results_typology.json
 python run_sample_level.py --divergence 0.02 0.10 --panel-mode no_decoy poly_catalogue \
                           --n-samples 60 --out results/results_catalogue_sample.json
+python run_junction_recurrence.py --n-samples 50 --clonal-fraction 0.1 0.3 0.6 1.0 \
+                          --out results/results_d_junction.json
 python run_leakage_probe.py --seeds 42 142 242
 python -m unittest discover -s tests -t .
 ```
@@ -230,6 +235,45 @@ to conserved windows, and 0.396-0.611 -- chance, at a null SE of 0.075 -- where
 it is not. With the true source absent from the panel, reads from *every* window
 of the element win unopposed, so the coverage is broad rather than blocky.
 Uniformity statistics failed in both forms of the mechanism.
+
+### The one discriminator that works where the panel is incomplete
+
+It is not a per-sample statistic at all. Every rule above is a competition test,
+and a competition test is worthless when the read's true source is absent from
+the panel. So is every within-sample statistic tried after it, including the
+intra-host diversity measure the literature uses for the neighbouring question.
+
+What works lives in the **cohort**. An endogenous insertion sits at the same
+host coordinate in everyone who inherited it; an exogenous integration sits at a
+coordinate private to the individual. Sort host-side junction coordinates by how
+many samples carry them and the two separate -- **without telling any sequence
+apart**. It sidesteps the tie / unopposed-win dichotomy rather than solving it.
+
+Measured over 50 samples at four clonal fractions:
+
+- **"Has a junction" is not merely at chance, it is useless.** At a threshold of
+  one junction bin it has sensitivity 1.000, FPR 1.000, specificity **0.00** --
+  it calls every sample positive, infected or not, because every sample carries
+  endogenous junctions. ROC AUC 0.507-0.594.
+- **Recurrence filtering gives specificity 0.96, constant in clonal fraction**
+  -- exactly one uninfected sample in twenty-five, at every clonal fraction
+  tested.
+- **Sensitivity is clonal-fraction limited**, not discrimination-limited:
+  0.040 / 0.360 / 0.600 / 0.680 at clonal fraction 0.1 / 0.3 / 0.6 / 1.0, and
+  the true integration coordinate is recovered in 1 / 9 / 22 / 25 of 25 infected
+  samples. Junction-spanning fragments are intrinsically rare -- only those
+  straddling a boundary.
+- **Validated independently:** endogenous loci recur at their population
+  frequency, all ten within 0.08 of truth. The detector recovers each locus's
+  frequency from junction evidence alone.
+
+Two honest caveats. FPR at 95% sensitivity is the *wrong* metric here -- the
+score is a small integer count, so demanding 95% sensitivity forces a degenerate
+threshold; the meaningful operating point is a threshold of one. And the gap
+between 25 integrations detected and 22 counted private is coordinate collision
+in a 100 kb backbone (200 bins, 25 integrations, birthday rate about 1.5 pairs); a
+real 3 Gb genome has ~6 million bins at the same resolution, so the method is
+better than these numbers show.
 
 ### Methodology
 

@@ -66,16 +66,21 @@ class PanelIndex:
         return [(ref_id, diag, n) for (ref_id, diag), n in ranked]
 
 
-def _best_local(read: np.ndarray, ref: np.ndarray, diag: int) -> tuple[int, int, int]:
+def _best_local(read: np.ndarray, ref: np.ndarray,
+                diag: int) -> tuple[int, int, int, int]:
     """Max-scoring ungapped local segment on one diagonal.
 
-    Returns (score, ref_start, aligned_len). Vectorised max-subarray:
+    Returns (score, ref_start, aligned_len, read_start). Vectorised max-subarray:
     max_j (prefix[j] - min_{i<=j} prefix[i]).
+
+    `read_start` exists so a caller can recover the aligned BASES, not just the
+    score -- which is what a pileup needs, and a pileup is what the intra-host
+    diversity statistic is computed from.
     """
     lo = max(0, -diag)
     hi = min(len(read), len(ref) - diag)
     if hi - lo < 1:
-        return 0, 0, 0
+        return 0, 0, 0, 0
     sub_read = read[lo:hi]
     sub_ref = ref[lo + diag:hi + diag]
     scores = np.where(sub_read == sub_ref, MATCH, MISMATCH).astype(np.int32)
@@ -85,9 +90,9 @@ def _best_local(read: np.ndarray, ref: np.ndarray, diag: int) -> tuple[int, int,
     end = int(np.argmax(gains))
     best = int(gains[end])
     if best <= 0:
-        return 0, 0, 0
+        return 0, 0, 0, 0
     start = int(np.argmin(prefix[:end + 1]))
-    return best, lo + diag + start, end - start + 1
+    return best, lo + diag + start, end - start + 1, lo + start
 
 
 @dataclass
@@ -97,19 +102,36 @@ class Hit:
     score: int
     ref_start: int
     aligned_len: int
+    # Enough to recover the aligned BASES: which strand won, and where on that
+    # strand the aligned segment starts. A pileup needs bases, not scores.
+    read_start: int = 0
+    reverse: bool = False
 
 
 def align_read(read: np.ndarray, index: PanelIndex, top: int = 6) -> list[Hit]:
     """Best hit per reference, both strands, sorted by score descending."""
     best_per_ref: dict[str, Hit] = {}
-    for strand_seq in (read, revcomp(read)):
+    for reverse, strand_seq in ((False, read), (True, revcomp(read))):
         for ref_id, diag, _n in index.candidates(strand_seq, top=top):
-            score, ref_start, alen = _best_local(strand_seq, index.panel.refs[ref_id], diag)
+            score, ref_start, alen, read_start = _best_local(
+                strand_seq, index.panel.refs[ref_id], diag)
             prev = best_per_ref.get(ref_id)
             if prev is None or score > prev.score:
                 best_per_ref[ref_id] = Hit(ref_id, index.panel.categories[ref_id],
-                                           score, ref_start, alen)
+                                           score, ref_start, alen,
+                                           read_start, reverse)
     return sorted(best_per_ref.values(), key=lambda h: -h.score)
+
+
+def aligned_bases(read: np.ndarray, hit: Hit) -> tuple[int, np.ndarray]:
+    """(ref_start, bases) for the segment of `read` that `hit` aligned.
+
+    Ungapped, so the mapping from reference position to base is one to one and
+    needs no CIGAR walk. The strand is taken from the hit, which is why Hit
+    carries it.
+    """
+    seq = revcomp(read) if hit.reverse else read
+    return hit.ref_start, seq[hit.read_start:hit.read_start + hit.aligned_len]
 
 
 def _in_ltr(index: PanelIndex, ref_id: str, start: int, alen: int) -> int:
@@ -155,6 +177,10 @@ class ReadFeatures:
     # source in F004 -- but it is what a SAMPLE-level coverage profile is built
     # from, which is the one route past the read-pair ceiling of F026.
     best_ref_start: int = 0
+    # Enough to recover the aligned BASES without re-aligning, which is what an
+    # intra-host diversity statistic needs. Also not model features.
+    best_read_start: int = 0
+    best_reverse: bool = False
 
 
 def _tie_structure(hits: list[Hit]) -> tuple[int, int]:
@@ -201,6 +227,8 @@ def features_for_pair(read: np.ndarray, mate: np.ndarray, index: PanelIndex,
 
     return ReadFeatures(
         best_ref_start=best.ref_start,
+        best_read_start=best.read_start,
+        best_reverse=best.reverse,
         n_tied_top=n_tied,
         n_tied_top_categories=n_tied_cats,
         mate_best_cat_is_exo=int(mate_best is not None and mate_best.category == "EXO"),
