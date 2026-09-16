@@ -1,0 +1,33 @@
+{
+  "n_reads": 8623,
+  "n_exogenous_reads": 567,
+  "n_calls": 539,
+  "n_true": 513,
+  "n_false": 26,
+  "competitor_category_knowable_frac": 0.0,
+  "false_calls": {
+    "tie_by_score_frac": 1.0,
+    "tie_by_mapq0_frac": 1.0,
+    "near_tie_band_1_10": 0
+  },
+  "true_calls": {
+    "tie_by_score_frac": 0.2827,
+    "tie_by_mapq0_frac": 0.1131,
+    "as_minus_xs_min": -5
+  },
+  "policies": {
+    "award_ties_to_exo": {
+      "calls": 539,
+      "false_calls": 26,
+      "false_call_frac": 0.0482,
+      "sensitivity_vs_all_exo_reads": 0.9048
+    },
+    "discard_mapq0": {
+      "calls": 455,
+      "false_calls": 0,
+      "false_call_frac": 0.0,
+      "sensitivity_vs_all_exo_reads": 0.8025
+    }
+  },
+  "aligner": "bwa: Version: 0.7.19-r1273\nbwa path: /home/chupeng/tools/bwa/bwa\nsamtools: absent (not required)\nflags: bwa mem -a -h 200 -k 19 -t 4\ndate: 2026-09-16T16:01:36Z"
+}

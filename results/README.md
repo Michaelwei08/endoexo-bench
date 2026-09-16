@@ -21,7 +21,7 @@ removing them would remove the audit trail.
 
 | | files |
 |---|---|
-| **post-fix** (quote these) | `results_catalogue_read`, `results_catalogue_sample`, `results_nodecoy_postfix`, `results_load_*` |
+| **post-fix** (quote these) | `results_catalogue_read`, `results_catalogue_sample`, `results_nodecoy_postfix`, `results_load_*`, `results_f049_*`, `results_d_*`, `results_bwa_comparison`, `results_divergence_ablation` |
 | **pre-fix** (directional only) | `results_f009_dist`, `results_typology`, `results_sample_level` |
 | **point-divergence model** (superseded, kept for the trail) | `results_sweep1`, `results_poly`, `results_leakage_probe` |
 
@@ -40,6 +40,13 @@ removing them would remove the audit trail.
 | `results_nodecoy_postfix.json` | F039, F040 | post-fix `no_decoy`, which is what shows a complete catalogue is *equivalent* to having the loci in the assembly, and what restates the sensitivity ceiling. |
 | `results_load_0.02_0.10.json` | F041, F042 | viral-load sweep, lowest band. This is where the three-bin count breaks. |
 | `results_load_0.10_0.50.json` | F041, F042 | viral-load sweep, 0.11-0.48x band. This is where it still holds perfectly. |
+| `results_f049_diversity.json` | F050-F055 | the intra-host diversity statistic as a standalone score. It loses to a raw read count where the panel is incomplete. |
+| `results_f049_lowload.json` | F054 | the same at low viral load, where everything is at chance. |
+| `results_f049_ablation.json` | F056, F057 | diversity features ablated from the sample-level model, for a clean attribution. |
+| `results_d_junction.json` | F058-F063 | cross-individual junction recurrence over 50 samples at four clonal fractions. |
+| `results_d_decomposition.json` | F075 | why a detected integration is not always private. It is integration-integration collision, 9 of 9. |
+| `results_bwa_comparison.json` | F066-F073 | REAL BWA-MEM 0.7.19 on the exported reads. The only file here not produced by the first-party aligner. |
+| `results_divergence_ablation.json` | F012, and section 2 of PAPER.md | what the distributional divergence model buys, measured. Existed as an ad-hoc check first; promoted because the paper quotes it. |
 
 ## Regenerating
 

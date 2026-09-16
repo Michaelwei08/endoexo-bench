@@ -41,8 +41,10 @@
     "collision_scale": {
       "bins_available": 200,
       "n_integrations": 25,
-      "expected_colliding_pairs": 1.5,
-      "note": "artefact of the simulated backbone size, not of the method"
+      "bins_per_integration_with_tolerance": 3,
+      "expected_colliding_pairs": 4.5,
+      "expected_samples_involved": 9.0,
+      "note": "artefact of the simulated backbone size, not of the method; a 3 Gb genome at this bin size gives about 6e6 bins"
     },
     "endogenous_loci": [
       {
@@ -116,7 +118,7 @@
     "divergence": 0.1,
     "clonal_fraction": 0.6,
     "cohort_seed": 42,
-    "seconds": 43.3
+    "seconds": 68.7
   },
   {
     "bin_size": 500,
@@ -160,8 +162,10 @@
     "collision_scale": {
       "bins_available": 200,
       "n_integrations": 25,
-      "expected_colliding_pairs": 1.5,
-      "note": "artefact of the simulated backbone size, not of the method"
+      "bins_per_integration_with_tolerance": 3,
+      "expected_colliding_pairs": 4.5,
+      "expected_samples_involved": 9.0,
+      "note": "artefact of the simulated backbone size, not of the method; a 3 Gb genome at this bin size gives about 6e6 bins"
     },
     "endogenous_loci": [
       {
@@ -235,6 +239,6 @@
     "divergence": 0.1,
     "clonal_fraction": 1.0,
     "cohort_seed": 42,
-    "seconds": 42.4
+    "seconds": 69.8
   }
 ]

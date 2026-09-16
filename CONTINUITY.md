@@ -197,6 +197,36 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   purpose: every test corresponds to an invariant a finding depends on or to a
   defect that actually happened here.
 
+### E: the manuscript draft, and what writing it caught (2026-09-17)
+
+- 2026-09-17 [CODE]: PAPER.md drafted, about 3,970 words. Framed as a MEASUREMENT
+  paper, per the second prior-art pass: "here is what these rules actually do",
+  with no novelty claim anywhere and the prior art for each mechanism stated in
+  section 1 rather than buried.
+- F076 2026-09-17 [TOOL]: WRITING THE PAPER CAUGHT THREE WRONG NUMBERS IN IT, all
+  found by taking its own claim -- that every number traces to a file in results/
+  -- literally and auditing it.
+    The divergence-model ablation was quoted as 57.8 percent to 0.6 percent. Those
+    were measured BEFORE the site-rate normalisation of F028 and are stale. The
+    post-fix values at median divergence 0.10 are 76.9 percent to 0.3 percent.
+    The retention ceiling at divergence 0.20 was quoted as 78.1 percent, which is
+    the pre-fix figure. Post-fix it is 80.9 percent.
+    The tie dichotomy was quoted as 99.8 to 100.0 percent. Across individual runs
+    it is 99.5 to 100.0 percent; 99.8 was neither the min-max nor the seed means.
+  Everything else checked exactly, including all of the BWA and all of the D
+  figures.
+- F077 2026-09-17 [CODE]: Two numbers the paper quoted had no file behind them at
+  all -- the BWA comparison printed to stdout only, and the divergence ablation was
+  an ad-hoc check. Both are now scripts writing to results/:
+  compare_with_bwa.py --out, and run_divergence_ablation.py. The claim "every
+  number traces to a file" is now true rather than aspirational.
+- D020 ACTIVE 2026-09-17 [CODE]: A number may not enter the paper unless it comes
+  from a file in results/ produced by a committed script. Not from a notebook, not
+  from an ad-hoc check, not from a session transcript. F076 is why.
+- 2026-09-17 [CODE]: results/README.md now maps all nineteen result files to the
+  findings they back, and marks results_bwa_comparison as the only one not produced
+  by the first-party aligner.
+
 ### B resolved: real BWA-MEM, and the prescription gets SIMPLER (2026-09-16)
 
 - F066 2026-09-16 [TOOL]: THE EXACTNESS SURVIVES GAPPED ALIGNMENT. This was the

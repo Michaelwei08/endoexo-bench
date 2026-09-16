@@ -153,11 +153,15 @@ is a loss the pipeline never sees.
 original point-divergence model, kept reachable so the effect of the
 distributional model is measured rather than asserted. At a median divergence of
 0.10 that ablation is stark: endogenous read windows falling inside the
-exogenous range go from **57.8 percent** under the distributional model to
-**0.6 percent** under the point model, and per-locus divergence collapses from a
-0.024 to 0.154 range onto 0.099 to 0.101. The point model is why the first
+exogenous range go from **76.9 percent** under the distributional model to
+**0.3 percent** under the point model, and per-locus divergence collapses from a
+0.038 to 0.119 range onto 0.099 to 0.101. The point model is why the first
 version of this harness reported perfect separation at every divergence above
 0.10.
+
+(An earlier version of this paragraph quoted 57.8 and 0.6 percent, measured
+before the site-rate normalisation of F028. Those were stale; the numbers above
+come from `results/results_divergence_ablation.json`.)
 
 ## Layout
 
@@ -174,9 +178,12 @@ run_junction_recurrence.py
 export_for_bwa.py     writes panel.fa, paired FASTQ and a separate truth.tsv
 run_bwa.sh            aligns the exported reads with real BWA-MEM (run in WSL)
 compare_with_bwa.py   reproduces the tie typology from the SAM, for comparison
-tests/                46 tests over the invariants the findings rest on
+run_divergence_ablation.py
+                      what the distributional divergence model buys, measured
+tests/                50 tests over the invariants the findings rest on
 results/              committed outputs; every README number traces to one
 PRIOR_ART.md          adversarial claim matrix. Read it before citing anything.
+PAPER.md              the manuscript draft. Not submitted.
 ```
 
 ```sh

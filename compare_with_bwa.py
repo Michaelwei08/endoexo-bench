@@ -219,6 +219,9 @@ def main() -> None:
     ap.add_argument("dirname")
     ap.add_argument("--sam", default=None,
                     help="SAM path; defaults to <dirname>/aln.sam, '-' reads stdin")
+    ap.add_argument("--out", default=None,
+                    help="write the measured quantities as JSON, so the paper's "
+                         "numbers trace to a file like every other result")
     args = ap.parse_args()
     d = Path(args.dirname)
     sam = Path(args.sam) if args.sam else d / "aln.sam"
@@ -269,6 +272,22 @@ def main() -> None:
               f"({100*near.size/max(1, g.size):.1f}%)")
         print()
 
+    record = {
+        "n_reads": len(truth), "n_exogenous_reads": n_exo_reads,
+        "n_calls": len(calls), "n_true": int(y.sum()), "n_false": int((~y).sum()),
+        "competitor_category_knowable_frac": round(float(known.mean()), 4),
+        "false_calls": {
+            "tie_by_score_frac": round(float((gap[~y] == 0).mean()), 4),
+            "tie_by_mapq0_frac": round(float(mapq0[~y].mean()), 4),
+            "near_tie_band_1_10": int(((gap[~y] > 0) & (gap[~y] <= 10)).sum()),
+        },
+        "true_calls": {
+            "tie_by_score_frac": round(float((gap[y] == 0).mean()), 4),
+            "tie_by_mapq0_frac": round(float(mapq0[y].mean()), 4),
+            "as_minus_xs_min": int(gap[y].min()),
+        },
+        "policies": {},
+    }
     print("policy comparison. Sensitivity is against ALL simulated exogenous reads.")
     policies = [
         ("award_ties_to_exo   ", np.ones(len(y), dtype=bool)),
@@ -291,6 +310,19 @@ def main() -> None:
         frac = (100 * fp / (tp + fp)) if (tp + fp) else float("nan")
         print(f"  {name}: calls {tp+fp:,}  false {frac:.1f}%  "
               f"sensitivity {tp/n_exo_reads:.3f}")
+        record["policies"][name.strip()] = {
+            "calls": tp + fp, "false_calls": fp,
+            "false_call_frac": round(frac / 100, 4) if frac == frac else None,
+            "sensitivity_vs_all_exo_reads": round(tp / n_exo_reads, 4)}
+
+    if args.out:
+        import json
+        versions = (d / "aligner_versions.txt")
+        record["aligner"] = (versions.read_text(encoding="ascii").strip()
+                             if versions.exists() else None)
+        with open(args.out, "w", encoding="ascii") as fh:
+            json.dump(record, fh, indent=2)
+        print(f"wrote {args.out}")
 
 
 if __name__ == "__main__":
