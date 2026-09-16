@@ -89,6 +89,41 @@ defect of the rule -- it is the correct report. What it costs is quantifiable in
 advance from the references alone: the fraction of true exogenous reads that are
 also ties is a hard ceiling on any tie-rejecting rule.
 
+### Validated against real BWA-MEM -- and the rule gets simpler
+
+The whole tie story was measured with a first-party **ungapped** aligner, which
+left one obvious way for it to be wrong: a gap buying a base somewhere would turn
+an exact tie into a near-tie, and "free to detect" would become "needs a
+threshold". Real BWA-MEM 0.7.19 on the same 8,623 read pairs says otherwise.
+
+- **100.0%** of false exogenous calls have `AS == XS` **exactly**, using BWA's own
+  XS tag. The near-tie band 1..10 contains **zero** of them. The exactness
+  survives gapped alignment.
+- **100.0%** of them also carry **MAPQ 0** -- BWA flags every one itself.
+- All 26 have realized local divergence **0.0000**: every one is a read from a
+  window where the endogenous copy is byte-identical to the reference.
+
+But the rule as stated above is **not implementable from standard BWA output**.
+It routes ties *between categories*, which needs the competitor's identity, and
+BWA's XS tag gives the second-best *score* without saying which reference it was
+on. There were **zero `XA:Z` tags** in the entire SAM even with `-h 200`. Standard
+output says a read is ambiguous; it does not say what it is ambiguous with.
+
+The implementable rule is category-agnostic and already sitting in every BAM:
+
+| policy | calls | false | sensitivity |
+|---|---|---|---|
+| count everything | 539 | 4.8% | 0.905 |
+| **discard MAPQ 0** | 455 | **0.0%** | **0.802** |
+| three-bin by category | -- | *not computable* | -- |
+
+So **discard MAPQ 0**: one field, no panel bookkeeping, zero false calls, ten
+points of sensitivity. The category framing stays as the *explanation* -- it is
+what makes those reads interpretable and it is what the typology measured -- but
+the rule a reader should take away is one line. It also beats the ungapped
+harness's own version (0.1% false at sensitivity 0.594 in the comparable cell),
+because gapped alignment places reads the ungapped one could not.
+
 ### Tie policy is an axis, not a setting
 
 Every run reports both, because the difference is large enough to reverse a

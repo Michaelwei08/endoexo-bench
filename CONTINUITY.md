@@ -197,6 +197,76 @@ validation, NOT publishable numbers. Config: 200 kb host filler, exogenous depth
   purpose: every test corresponds to an invariant a finding depends on or to a
   defect that actually happened here.
 
+### B resolved: real BWA-MEM, and the prescription gets SIMPLER (2026-09-16)
+
+- F066 2026-09-16 [TOOL]: THE EXACTNESS SURVIVES GAPPED ALIGNMENT. This was the
+  single biggest threat to the project's sharpest claim: if a gap bought a base
+  somewhere, an exact tie would become a near-tie and "free to detect" would become
+  "needs a threshold". It does not happen. Under real BWA-MEM 0.7.19 on the same
+  8,623 read pairs, 100.0 percent of false exogenous calls have AS == XS EXACTLY,
+  using BWA's own XS tag, and the near-tie band of 1 to 10 contains ZERO of them.
+  My prediction that gaps would spread the spike is refuted.
+- F067 2026-09-16 [TOOL]: BWA flags every one of them itself. MAPQ is 0 for 100.0
+  percent of the false calls, against 11.3 percent of the true ones. The ambiguity
+  this project spent days characterising is already reported by the aligner in a
+  field every pipeline reads.
+- F068 2026-09-16 [TOOL]: F016's conserved-window mechanism is confirmed by real
+  gapped alignment, and the diagnostic reads exactly zero. All 26 false calls have
+  realized local divergence 0.0000 -- median 0.0000, max 0.0000, 100 percent below
+  0.05. Every one is a read from a window where the endogenous copy is byte-identical
+  to the exogenous reference.
+- F069 2026-09-16 [TOOL]: THE THREE-BIN RULE AS THIS PROJECT DEFINES IT IS NOT
+  IMPLEMENTABLE FROM STANDARD BWA OUTPUT, and that reframes the whole prescription.
+  The rule routes ties BETWEEN CATEGORIES to an ambiguous bin, which needs the
+  competitor's identity. BWA's XS tag gives the second-best SCORE and not the
+  reference it was on, and there were ZERO XA:Z tags in the entire SAM even with
+  -h 200. Standard output says a read is ambiguous; it does not say what it is
+  ambiguous with.
+  The implementable rule is category-agnostic: DISCARD MAPQ 0. It marks the same
+  reads, it needs one field that already exists, and it requires no panel
+  bookkeeping at all.
+- F070 2026-09-16 [TOOL]: And the implementable rule is BETTER than the harness's
+  version. Discarding MAPQ 0 gives 0.0 percent false calls at sensitivity 0.802,
+  against 4.8 percent at 0.905 for counting everything. The ungapped harness's
+  three-bin rule reached 0.1 percent false at sensitivity 0.594 in the comparable
+  cell, so gapped alignment recovers reads the ungapped aligner could not place and
+  the sensitivity cost is ten points rather than forty.
+- F071 2026-09-16 [TOOL]: A PARSER ARTEFACT I NEARLY REPORTED, the third catch of
+  this kind in this project. `bwa mem -a` does NOT emit secondary alignments for
+  properly paired reads: 17,246 records for 8,623 pairs, exactly one per end, zero
+  carrying flag 0x100 or 0x800. A parser reconstructing the second-best score by
+  comparing records therefore saw one reference per read, set XS to 0, and printed
+  an AS - XS gap of 150 for every false call with 0.0 percent ties -- the exact
+  opposite of the truth. What caught it was the gap being 150, the arithmetic
+  maximum, which is not a number a real competition produces.
+- F072 2026-09-16 [TOOL]: B WAS NEVER ACTUALLY BLOCKED, and the blocker was my own
+  framing. bwa needs no sudo: it builds from source in about a minute against the
+  zlib headers Ubuntu 24.04 already ships, into a user directory. And samtools is
+  not needed at all -- compare_with_bwa.py parses the SAM directly, and samtools was
+  only producing a sorted BAM nothing consumed. Requiring it was the sole reason the
+  step looked privileged. run_bwa.sh now takes BWA and SAMTOOLS from the environment
+  and skips the BAM when samtools is absent.
+- F073 2026-09-16 [TOOL]: A BWA behaviour worth knowing: AS - XS reaches -5 among
+  true calls, i.e. the second-best score EXCEEDS the primary's. BWA optimises the
+  PAIR, so the primary is chosen for pairing rather than for individual score. Any
+  rule written as AS > XS has to tolerate that.
+- F074 2026-09-16 [TOOL]: A unit test caught a real bug in the new SAM parser, in
+  the same hour it was written. Competitor categories were being taken over EVERY
+  alternative reference regardless of score, so a reference scoring far below the
+  primary counted as a competitor and inflated the measured ambiguity. Only
+  alternatives TIED AT THE TOP are competitors. It did not change the BWA numbers
+  because BWA emitted no multi-record cases here, but it would have on any panel
+  where it does.
+- D018 ACTIVE 2026-09-16 [CODE]: The prescription is now stated in terms of MAPQ 0
+  rather than category-level ties, because that is what a pipeline can actually
+  execute. The category framing stays as the EXPLANATION -- it is what makes the
+  MAPQ-0 reads interpretable, and it is what the tie typology measured -- but the
+  rule shipped to a reader is "discard MAPQ 0", one field, no panel bookkeeping.
+- D019 ACTIVE 2026-09-16 [CODE]: The first-party ungapped aligner is now VALIDATED
+  against real BWA-MEM on the decisive claim: 100 percent exact ties among false
+  calls in both. Its numbers remain harness validation rather than publishable
+  results, per D003, but the claim the project rests on no longer depends on it.
+
 ### D: cross-individual junction recurrence (2026-09-16)
 
 - D016 ACTIVE 2026-09-16 [CODE]: The cohort genome model lives in endoexo/cohort.py and

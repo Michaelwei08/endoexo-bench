@@ -438,24 +438,71 @@ class TestBwaSamParsing(unittest.TestCase):
     def test_same_category_tie_is_not_ambiguous(self):
         """Two host references tied at the top still decide the CATEGORY."""
         sam = self._sam([
-            self._rec("r3", 65, "HOST", tags=("AS:i:150",)),
+            self._rec("r3", 65, "HOST", tags=("AS:i:150", "XS:i:150")),
             self._rec("r3", 65 | 0x100, "HOST_NOLOCI", tags=("AS:i:150",)),
             self._rec("r3", 65 | 0x100, "EXO_REF", tags=("AS:i:100",)),
         ])
         f = parse_sam(sam, self.CATS)["r3"]
-        self.assertEqual(f["n_tied_top"], 2)
         self.assertEqual(f["n_tied_top_categories"], 1)
-        self.assertEqual(f["as_minus_xs"], 50)
+        self.assertTrue(f["competitor_category_known"])
+        self.assertEqual(f["tie_by_score"], 1)
 
-    def test_max_score_per_reference_is_kept(self):
+    def test_as_comes_from_the_primary_not_the_best_record(self):
+        """SPECIFICATION CHANGE, 2026-09-16, and the reason matters.
+
+        This used to assert the maximum AS across records for a reference. The
+        primary record's AS is the right one: it is the alignment BWA chose and
+        therefore the one a downstream tool consumes. BWA optimises the PAIR, so
+        the primary can legitimately NOT be the individually best-scoring
+        alignment -- which is exactly why AS - XS reaches -5 on real data
+        (F073). Taking a maximum across records would paper over that.
+        """
         sam = self._sam([
-            self._rec("r4", 65, "EXO_REF", tags=("AS:i:120",)),
+            self._rec("r4", 65, "EXO_REF", tags=("AS:i:120", "XS:i:100")),
             self._rec("r4", 65 | 0x100, "EXO_REF", tags=("AS:i:145",)),
             self._rec("r4", 65 | 0x100, "HOST", tags=("AS:i:100",)),
         ])
         f = parse_sam(sam, self.CATS)["r4"]
-        self.assertEqual(f["AS"], 145)
-        self.assertEqual(f["as_minus_xs"], 45)
+        self.assertEqual(f["AS"], 120)
+        self.assertEqual(f["as_minus_xs"], 20)
+
+    def test_xs_tag_is_preferred_over_cross_record_reconstruction(self):
+        """The tag is BWA's own answer. Reconstructing it from records is what
+        produced the artefact recorded in F071."""
+        sam = self._sam([
+            self._rec("r6", 65, "EXO_REF", tags=("AS:i:150", "XS:i:150")),
+        ])
+        f = parse_sam(sam, self.CATS)["r6"]
+        self.assertEqual(f["XS"], 150)
+        self.assertEqual(f["as_minus_xs"], 0)
+        self.assertEqual(f["tie_by_score"], 1)
+
+    def test_missing_xs_tag_falls_back_to_records(self):
+        sam = self._sam([
+            self._rec("r7", 65, "EXO_REF", tags=("AS:i:150",)),
+            self._rec("r7", 65 | 0x100, "HOST", tags=("AS:i:110",)),
+        ])
+        f = parse_sam(sam, self.CATS)["r7"]
+        self.assertEqual(f["XS"], 110)
+
+    def test_mapq_zero_is_recorded_as_its_own_tie_proxy(self):
+        """MAPQ 0 is the only tie signal a standard pipeline actually has, since
+        the competitor's category is not in default BWA output (F069)."""
+        rec = self._rec("r8", 65, "EXO_REF", tags=("AS:i:150", "XS:i:150"))
+        rec[4] = 0
+        f = parse_sam(self._sam([rec]), self.CATS)["r8"]
+        self.assertEqual(f["tie_by_mapq0"], 1)
+        self.assertFalse(f["competitor_category_known"])
+
+    def test_xa_tag_supplies_the_competitor_category(self):
+        sam = self._sam([
+            self._rec("r9", 65, "EXO_REF",
+                      tags=("AS:i:150", "XS:i:150", "XA:Z:HOST,+5000,150M,0;")),
+        ])
+        f = parse_sam(sam, self.CATS)["r9"]
+        self.assertTrue(f["competitor_category_known"])
+        self.assertEqual(f["competitor_categories"], ["HOST"])
+        self.assertEqual(f["n_tied_top_categories"], 2)
 
     def test_unmapped_missing_tag_and_second_end_are_excluded(self):
         sam = self._sam([

@@ -28,10 +28,31 @@ ONE DIFFERENCE TO EXPECT, BEFORE THE NUMBERS ARRIVE
   robust one: it is the only policy whose output does not depend on an arbitrary
   implementation choice inside the aligner.
 
+WHAT BWA ACTUALLY EMITS, learned the hard way 2026-09-16
+  `bwa mem -a` does NOT emit secondary alignments for properly paired reads. On
+  the first real run there was exactly one record per read end -- 17,246 records
+  for 8,623 pairs -- and zero records carrying flag 0x100 or 0x800. A parser that
+  reconstructs the second-best score by comparing records therefore saw a single
+  reference per read, concluded XS = 0, and reported an AS - XS gap of 150 for
+  every false call with 0.0 percent ties. Those numbers were a parser artefact
+  and were nearly reported as a finding.
+
+  The information is in the SAM, just not there. Every record carries BWA's own
+  `XS:i:` second-best score, and 1,286 records carried MAPQ 0, which is BWA's
+  signal for an ambiguous placement. Both are used now.
+
+  ONE THING REMAINS UNOBSERVABLE, and it matters. BWA's XS tag gives the
+  second-best SCORE but not the reference it was on, so the CATEGORY of the
+  competitor -- the thing this project's whole tie typology is defined on -- is
+  not recoverable from default output. It needs `-h`, which emits XA:Z listing
+  alternative hits by reference name. That is a practical limitation on whether
+  the three-bin rule is implementable in a standard pipeline at all, and it is
+  reported rather than papered over: `competitor_category_known` says whether the
+  question could be answered for each read.
+
 INPUT
   The directory written by export_for_bwa.py, plus a SAM produced from the same
-  reads by `bwa mem -a` (all alignments, not just the primary -- the category
-  tie structure cannot be recovered from primary records alone).
+  reads by `bwa mem -a -h 200`.
 
   Run inside WSL, where bwa and samtools live:
     bash run_bwa.sh bwa_compare
@@ -99,7 +120,7 @@ def parse_sam(path: Path, categories: dict[str, str]) -> dict[str, dict]:
     construction.
     """
     per_end: dict[tuple[str, int], dict[str, int]] = defaultdict(dict)
-    clip: dict[tuple[str, int], int] = {}
+    primary: dict[tuple[str, int], dict] = {}
     opened = sys.stdin if str(path) == "-" else path.open(encoding="ascii")
     try:
         for line in opened:
@@ -112,44 +133,83 @@ def parse_sam(path: Path, categories: dict[str, str]) -> dict[str, dict]:
             if ref == "*" or flag & 0x4:
                 continue
             end = 2 if flag & 0x80 else 1
-            score = None
-            for tag in f[11:]:
-                if tag.startswith("AS:i:"):
-                    score = int(tag[5:])
-                    break
+            tags = {t[:2]: t for t in f[11:]}
+            score = int(tags["AS"][5:]) if "AS" in tags else None
             if score is None:
                 continue
             key = (name, end)
             prev = per_end[key].get(ref)
             if prev is None or score > prev:
                 per_end[key][ref] = score
-                if not (flag & 0x100):
-                    clip[key] = softclip_len(cigar)
+            if not (flag & 0x900):
+                primary[key] = {
+                    "ref": ref,
+                    "AS": score,
+                    # BWA's OWN second-best score, which is the number to use.
+                    "XS_tag": int(tags["XS"][5:]) if "XS" in tags else None,
+                    "mapq": int(f[4]),
+                    "softclip_len": softclip_len(cigar),
+                    # XA:Z lists alternative hits as ref,pos,CIGAR,NM; it is the
+                    # only place BWA names the COMPETING reference, and it is
+                    # emitted only when -h is given.
+                    "xa": tags.get("XA"),
+                }
     finally:
         if opened is not sys.stdin:
             opened.close()
 
     out: dict[str, dict] = {}
-    for (name, end), by_ref in per_end.items():
+    for (name, end), prim in primary.items():
         if end != 1:
             continue                     # features are defined on the first end
-        best_score = max(by_ref.values())
-        tied_refs = [r for r, s in by_ref.items() if s == best_score]
-        tied_cats = {categories.get(r, "?") for r in tied_refs}
-        others = sorted((s for r, s in by_ref.items() if r not in tied_refs),
+        by_ref = per_end[(name, end)]
+        best_score = prim["AS"]
+        best_ref = prim["ref"]
+
+        # Prefer BWA's XS tag. Fall back to cross-record comparison only when
+        # secondary records actually exist, which for properly paired reads they
+        # do not -- see the module docstring.
+        others = sorted((s for r, s in by_ref.items() if r != best_ref),
                         reverse=True)
-        xs = others[0] if others else (best_score if len(tied_refs) > 1 else 0)
-        best_ref = tied_refs[0]
+        xs = prim["XS_tag"] if prim["XS_tag"] is not None else (
+            others[0] if others else 0)
+
+        # Which CATEGORY is the competitor in? Recoverable only from XA:Z or from
+        # genuine secondary records. Without either, it is unobservable and says
+        # so rather than defaulting to "no tie".
+        # Only alternatives TIED AT THE TOP count. Taking every alternative
+        # regardless of score was a bug: a reference scoring far below the
+        # primary is not a competitor, and counting its category inflated the
+        # ambiguity. Caught by a unit test, 2026-09-16.
+        alt_refs = [r for r, s in by_ref.items()
+                    if r != best_ref and s == best_score]
+        if prim["xa"]:
+            # XA entries carry ref,pos,CIGAR,NM and NO score. BWA emits them only
+            # for hits within 80 percent of the best, so an XA reference is
+            # near-best but not verifiably tied. Included, with that caveat.
+            for hit in prim["xa"][5:].rstrip(";").split(";"):
+                if hit:
+                    alt_refs.append(hit.split(",")[0])
+        alt_cats = {categories.get(r, "?") for r in alt_refs}
+        competitor_known = bool(alt_refs)
+
         out[name] = {
             "best_ref": best_ref,
             "best_cat": categories.get(best_ref, "?"),
             "AS": best_score,
             "XS": xs,
             "as_minus_xs": best_score - xs,
-            "n_tied_top": len(tied_refs),
-            "n_tied_top_categories": len(tied_cats),
-            "tied_categories": sorted(tied_cats),
-            "softclip_len": clip.get((name, 1), 0),
+            "mapq": prim["mapq"],
+            "softclip_len": prim["softclip_len"],
+            "competitor_category_known": competitor_known,
+            "competitor_categories": sorted(alt_cats),
+            # Two observable tie proxies, since the exact category-level tie is
+            # not recoverable from default BWA output.
+            "tie_by_score": int(best_score == xs),
+            "tie_by_mapq0": int(prim["mapq"] == 0),
+            "n_tied_top_categories": (
+                len(alt_cats | {categories.get(best_ref, "?")})
+                if competitor_known and best_score == xs else 1),
         }
     return out
 
@@ -184,33 +244,53 @@ def main() -> None:
           f"(true {int(y.sum()):,}, false {int((~y).sum()):,})")
     print()
 
+    mapq0 = np.array([f["tie_by_mapq0"] for _, f in calls], dtype=bool)
+    known = np.array([f["competitor_category_known"] for _, f in calls], dtype=bool)
+    print(f"competitor category recoverable from the SAM for "
+          f"{100*known.mean():.1f}% of calls (needs XA:Z, i.e. -h)")
+    print()
+
     for label, mask in (("FALSE calls", ~y), ("TRUE calls", y)):
         if not mask.any():
             continue
         g = gap[mask]
         print(f"{label}: n={mask.sum():,}")
-        print(f"  cross-category tie at the top : {100*amb[mask].mean():.1f}%")
-        print(f"  AS - XS == 0                  : {100*(g == 0).mean():.1f}%")
-        print(f"  AS - XS <= 2                  : {100*(g <= 2).mean():.1f}%")
-        print(f"  AS - XS distribution          : "
+        print(f"  AS - XS == 0  (BWA's own XS tag) : {100*(g == 0).mean():.1f}%")
+        print(f"  AS - XS <= 2                     : {100*(g <= 2).mean():.1f}%")
+        print(f"  MAPQ == 0 (BWA's ambiguity flag)  : {100*mapq0[mask].mean():.1f}%")
+        print(f"  cross-category tie, where knowable: "
+              f"{100*amb[mask & known].mean():.1f}%" if (mask & known).any()
+              else "  cross-category tie, where knowable: n/a")
+        print(f"  AS - XS distribution             : "
               f"min {g.min()} p50 {int(np.median(g))} p95 {int(np.percentile(g, 95))} max {g.max()}")
         # THE number: if the ungapped spike at 0 has spread, it shows up here
-        nonzero = g[g > 0]
-        if nonzero.size:
-            print(f"  among AS-XS > 0               : n={nonzero.size:,}, "
-                  f"p50 {int(np.median(nonzero))}, max {nonzero.max()}")
+        near = g[(g > 0) & (g <= 10)]
+        print(f"  in the near-tie band 1..10       : {near.size:,} "
+              f"({100*near.size/max(1, g.size):.1f}%)")
         print()
 
-    tp_all, fp_all = int(y.sum()), int((~y).sum())
-    keep = ~amb
-    tp, fp = int((y & keep).sum()), int(((~y) & keep).sum())
-    print("policy comparison, as in run_slice:")
-    print(f"  award_ties_to_exo   : calls {tp_all+fp_all:,}  false "
-          f"{100*fp_all/(tp_all+fp_all):.1f}%  sensitivity "
-          f"{tp_all/n_exo_reads:.3f}")
-    print(f"  three_bin_ambiguous : calls {tp+fp:,}  false "
-          f"{(100*fp/(tp+fp)) if (tp+fp) else float('nan'):.1f}%  sensitivity "
-          f"{tp/n_exo_reads:.3f}")
+    print("policy comparison. Sensitivity is against ALL simulated exogenous reads.")
+    policies = [
+        ("award_ties_to_exo   ", np.ones(len(y), dtype=bool)),
+        # The implementable rule. Category is unobservable from standard output,
+        # but BWA's own MAPQ 0 marks the same reads -- and it is one field that
+        # every pipeline already has.
+        ("discard_mapq0       ", ~mapq0),
+        # The rule as this project defines it, which needs the COMPETITOR's
+        # category. Reported only where that is knowable, so its absence is
+        # visible rather than silently collapsing into the first row.
+        ("three_bin_by_category", ~amb if known.any() else None),
+    ]
+    for name, keep in policies:
+        if keep is None:
+            print(f"  {name}: NOT COMPUTABLE -- no XA:Z in the SAM, so the "
+                  f"competitor's category is unknown for every call")
+            continue
+        tp = int((y & keep).sum())
+        fp = int(((~y) & keep).sum())
+        frac = (100 * fp / (tp + fp)) if (tp + fp) else float("nan")
+        print(f"  {name}: calls {tp+fp:,}  false {frac:.1f}%  "
+              f"sensitivity {tp/n_exo_reads:.3f}")
 
 
 if __name__ == "__main__":
