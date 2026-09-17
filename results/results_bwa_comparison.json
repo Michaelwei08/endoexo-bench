@@ -29,5 +29,5 @@
       "sensitivity_vs_all_exo_reads": 0.8025
     }
   },
-  "aligner": "bwa: Version: 0.7.19-r1273\nbwa path: /home/chupeng/tools/bwa/bwa\nsamtools: absent (not required)\nflags: bwa mem -a -h 200 -k 19 -t 4\ndate: 2026-09-16T16:01:36Z"
+  "aligner": "bwa: Version: 0.7.19-r1273\nbwa path: <HOME>/tools/bwa/bwa\nsamtools: absent (not required)\nflags: bwa mem -a -h 200 -k 19 -t 4\ndate: 2026-09-16T16:01:36Z"
 }
